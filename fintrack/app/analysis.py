@@ -58,7 +58,6 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
     income = 0
     expenses = 0
     transfers_out = 0
-    categories = []
     for r in rows:
         if r["kind"] == "income":
             income += r["s"]
@@ -66,37 +65,42 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
             expenses += -r["s"]
         else:
             transfers_out += -r["s"]
-    for r in rows:
-        if r["kind"] != "expense":
-            continue
-        spent = -r["s"]
-        budget = budgets.get(r["id"])
+
+    # Oberkategorien mit Unterkategorien aufsummieren
+    meta = {c["id"]: c for c in conn.execute("SELECT id,name,kind,color,parent_id FROM categories")}
+    top_of = {cid: (c["parent_id"] if c["parent_id"] in meta else cid) for cid, c in meta.items()}
+    spent_by = {r["id"]: -r["s"] for r in rows if r["kind"] == "expense"}
+
+    def entry(cid: int, spent: int, budget: int | None, avg3: float) -> dict:
         projected = round(spent / elapsed * days_in_month) if is_current and elapsed else spent
         status = "none"
         if budget:
-            if spent > budget:
-                status = "over"
-            elif projected > budget:
-                status = "warn"
-            else:
-                status = "ok"
-        categories.append({
-            "id": r["id"], "name": r["name"], "color": r["color"],
-            "spent_cents": spent, "budget_cents": budget,
-            "projected_cents": projected, "avg3_cents": round(avg.get(r["id"], 0)),
-            "status": status,
-        })
-    # Kategorien mit Budget aber ohne Umsatz im Monat ebenfalls zeigen
-    shown = {c["id"] for c in categories}
-    for cid, b in budgets.items():
-        if cid in shown:
+            status = "over" if spent > budget else ("warn" if projected > budget else "ok")
+        c = meta[cid]
+        return {"id": cid, "name": c["name"], "color": c["color"], "spent_cents": spent, "budget_cents": budget,
+                "projected_cents": projected, "avg3_cents": round(avg3), "status": status}
+
+    groups: dict[int, list[int]] = defaultdict(list)       # Oberkategorie -> Mitglieder (inkl. sie selbst)
+    for cid, c in meta.items():
+        if c["kind"] == "expense":
+            groups[top_of[cid]].append(cid)
+    categories = []
+    for top, members in groups.items():
+        spent = sum(spent_by.get(m, 0) for m in members)
+        child_budgets = [budgets[m] for m in members if m != top and m in budgets]
+        eff = budgets.get(top) or (sum(child_budgets) or None)
+        if not spent and not eff and not any(avg.get(m) for m in members):
             continue
-        c = conn.execute("SELECT id,name,kind,color FROM categories WHERE id=?", (cid,)).fetchone()
-        if c and c["kind"] == "expense":
-            categories.append({"id": c["id"], "name": c["name"], "color": c["color"],
-                               "spent_cents": 0, "budget_cents": b, "projected_cents": 0,
-                               "avg3_cents": round(avg.get(cid, 0)), "status": "ok"})
+        e = entry(top, spent, eff, sum(avg.get(m, 0) for m in members))
+        e["own_budget_cents"] = budgets.get(top)
+        e["own_cents"] = spent_by.get(top, 0)
+        e["children"] = sorted(
+            (entry(m, spent_by.get(m, 0), budgets.get(m), avg.get(m, 0)) for m in members
+             if m != top and (spent_by.get(m) or m in budgets or avg.get(m))),
+            key=lambda x: -x["spent_cents"])
+        categories.append(e)
     categories.sort(key=lambda c: -c["spent_cents"])
+    total_budget = sum(c["budget_cents"] or 0 for c in categories)
 
     # Kumulierte Ausgaben pro Tag
     q = ("SELECT t.booking_date d, SUM(-t.amount_cents) s FROM transactions t "
@@ -113,9 +117,6 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
     for d in range(1, last_day + 1):
         run += per_day.get(f"{y:04d}-{m:02d}-{d:02d}", 0)
         cumulative.append(run)
-
-    total_budget = sum(b for cid, b in budgets.items()
-                       if conn.execute("SELECT kind FROM categories WHERE id=?", (cid,)).fetchone()["kind"] == "expense")
 
     q = ("SELECT CASE WHEN t.payee='' THEN t.booking_text ELSE t.payee END AS p, SUM(-t.amount_cents) s, COUNT(*) n "
          "FROM transactions t JOIN categories c ON c.id=t.category_id WHERE c.kind='expense' "
@@ -200,7 +201,7 @@ def detect_recurring(conn: sqlite3.Connection, today: date | None = None) -> lis
     ).fetchall()
     groups: dict[tuple, list] = defaultdict(list)
     for r in rows:
-        if r["cat"] == "Bargeld":
+        if r["cat"] in ("Bargeld", "Bargeldauszahlung"):
             continue            # regelmäßige Abhebungen sind keine Verträge
         key = _payee_key(r["payee"], r["booking_text"])
         if len(key) < 3:

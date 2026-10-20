@@ -17,7 +17,7 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import analysis, comdirect_api, comdirect_sync, fints_sync
+from . import analysis, category_tree, comdirect_api, comdirect_sync, fints_sync
 from .categorizer import apply_rules
 from .db import get_setting, init_db, now_iso, session, set_setting
 from .importers import ImportError_, find_account_by_iban, parse_csv, store_transactions
@@ -298,7 +298,9 @@ async def list_transactions(request: Request):
     if p.get("category_id") == "none":
         where.append("t.category_id IS NULL")
     elif p.get("category_id"):
-        where.append("t.category_id=?"); args.append(int(p["category_id"]))
+        with session() as _c:                       # Oberkategorie schließt ihre Unterkategorien ein
+            ids = category_tree.descendants(_c, int(p["category_id"]))
+        where.append(f"t.category_id IN ({','.join('?' * len(ids))})"); args += ids
     if p.get("q"):
         like = f"%{p['q'].lower()}%"
         where.append("(LOWER(t.payee) LIKE ? OR LOWER(t.purpose) LIKE ? OR LOWER(t.booking_text) LIKE ?)")
@@ -353,21 +355,72 @@ async def create_category(request: Request):
     d = await body(request)
     name = str(d.get("name", "")).strip()
     kind = d.get("kind", "expense")
-    if not name or kind not in ("expense", "income", "transfer"):
-        return err("Name/Art ungültig.")
+    parent_id = d.get("parent_id") or None
+    if not name:
+        return err("Name fehlt.")
     with session() as conn:
+        color = d.get("color")
+        if parent_id:
+            p = conn.execute("SELECT * FROM categories WHERE id=?", (int(parent_id),)).fetchone()
+            if not p:
+                return err("Oberkategorie nicht gefunden.", 404)
+            if p["parent_id"]:
+                return err("Unterkategorien können nicht weiter verschachtelt werden.")
+            kind, color = p["kind"], color or p["color"]       # erbt Art und Farbe
+        if kind not in ("expense", "income", "transfer"):
+            return err("Art ungültig.")
         try:
-            cur = conn.execute("INSERT INTO categories(name,kind,color) VALUES(?,?,?)",
-                               (name, kind, d.get("color") or "#9aa0a6"))
+            cur = conn.execute("INSERT INTO categories(name,kind,color,parent_id) VALUES(?,?,?,?)",
+                               (name, kind, color or "#9aa0a6", parent_id))
         except Exception:  # noqa: BLE001
             return err("Kategorie existiert bereits.", 409)
         return JSONResponse({"id": cur.lastrowid}, status_code=201)
 
 
+async def update_category(request: Request):
+    """Umbenennen, Farbe ändern oder einer anderen Oberkategorie zuordnen (parent_id=null: oberste Ebene)."""
+    cid = int(request.path_params["id"])
+    d = await body(request)
+    with session() as conn:
+        c = conn.execute("SELECT * FROM categories WHERE id=?", (cid,)).fetchone()
+        if not c:
+            return err("Kategorie nicht gefunden.", 404)
+        name = str(d.get("name", c["name"])).strip()
+        if not name:
+            return err("Name fehlt.")
+        color = d.get("color") or c["color"]
+        parent_id = c["parent_id"]
+        if "parent_id" in d:
+            parent_id = d["parent_id"] or None
+            if parent_id:
+                parent_id = int(parent_id)
+                p = conn.execute("SELECT * FROM categories WHERE id=?", (parent_id,)).fetchone()
+                if not p or parent_id == cid:
+                    return err("Oberkategorie ungültig.")
+                if p["parent_id"]:
+                    return err("Unterkategorien können nicht weiter verschachtelt werden.")
+                if p["kind"] != c["kind"]:
+                    return err("Ober- und Unterkategorie müssen dieselbe Art haben (Ausgabe/Einnahme/Umbuchung).")
+                if conn.execute("SELECT 1 FROM categories WHERE parent_id=?", (cid,)).fetchone():
+                    return err("Diese Kategorie hat selbst Unterkategorien und kann nicht untergeordnet werden.")
+        try:
+            conn.execute("UPDATE categories SET name=?, color=?, parent_id=? WHERE id=?", (name, color, parent_id, cid))
+        except Exception:  # noqa: BLE001
+            return err("Kategorie existiert bereits.", 409)
+    return JSONResponse({"ok": True})
+
+
+async def apply_category_template(request: Request):
+    with session() as conn:
+        res = category_tree.apply_template(conn)
+        res["recategorized"] = apply_rules(conn)
+    return JSONResponse(res)
+
+
 async def delete_category(request: Request):
     cid = int(request.path_params["id"])
     with session() as conn:
-        conn.execute("DELETE FROM categories WHERE id=?", (cid,))
+        conn.execute("DELETE FROM categories WHERE id=?", (cid,))   # Unterkategorien rücken auf die oberste Ebene
         apply_rules(conn)
     return JSONResponse({"ok": True})
 
@@ -510,6 +563,8 @@ routes = [
     Route("/api/transactions/{id:int}", patch_transaction, methods=["PATCH"]),
     Route("/api/categories", list_categories),
     Route("/api/categories", create_category, methods=["POST"]),
+    Route("/api/categories/template", apply_category_template, methods=["POST"]),
+    Route("/api/categories/{id:int}", update_category, methods=["PATCH"]),
     Route("/api/categories/{id:int}", delete_category, methods=["DELETE"]),
     Route("/api/rules", list_rules),
     Route("/api/rules", create_rule, methods=["POST"]),

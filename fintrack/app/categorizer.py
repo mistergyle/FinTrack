@@ -114,7 +114,8 @@ DEFAULT_RULES = [
 
 
 def seed_defaults(conn: sqlite3.Connection) -> None:
-    if conn.execute("SELECT COUNT(*) FROM categories").fetchone()[0] == 0:
+    fresh = conn.execute("SELECT COUNT(*) FROM categories").fetchone()[0] == 0
+    if fresh:
         conn.executemany(
             "INSERT INTO categories(name,kind,color) VALUES(?,?,?)", DEFAULT_CATEGORIES
         )
@@ -130,6 +131,9 @@ def seed_defaults(conn: sqlite3.Connection) -> None:
                     "VALUES(?,?,?,?,'default',?)",
                     (ids[cat], p, direction, 0, ts),
                 )
+    if fresh:
+        from .category_tree import apply_template
+        apply_template(conn)      # neue Installation: gleich mit Ober-/Unterkategorien starten
 
 
 def _normalize_iban(iban: str | None) -> str:
@@ -162,7 +166,7 @@ class Categorizer:
         cats = {r["name"]: r["id"] for r in conn.execute("SELECT id,name FROM categories")}
         self.cat_umbuchung = cats.get("Umbuchung")
         self.cat_other_in = cats.get("Sonstige Einnahmen")
-        self.cat_other_out = cats.get("Sonstiges")
+        self.cat_other_out = cats.get("Sonstige Unkategorisierte Ausgaben") or cats.get("Sonstiges")
         self.own_ibans = {
             _normalize_iban(r["iban"]) for r in conn.execute("SELECT iban FROM accounts") if r["iban"]
         }

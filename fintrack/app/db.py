@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS categories (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     kind TEXT NOT NULL CHECK (kind IN ('expense','income','transfer')),
-    color TEXT NOT NULL DEFAULT '#9aa0a6'
+    color TEXT NOT NULL DEFAULT '#9aa0a6',
+    parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL   -- Unterkategorie (eine Ebene)
 );
 CREATE TABLE IF NOT EXISTS rules (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,6 +104,9 @@ def init_db() -> None:
 
     with session() as conn:
         conn.executescript(SCHEMA)
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(categories)")}
+        if "parent_id" not in cols:   # Migration älterer Datenbanken
+            conn.execute("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL")
         seed_defaults(conn)
 
 

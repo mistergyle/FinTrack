@@ -57,9 +57,20 @@ async function loadMeta() {
   state.presets = a.presets;
 }
 
-const catOptions = (sel, kinds) => state.cats
-  .filter(c => !kinds || kinds.includes(c.kind))
-  .map(c => `<option value="${c.id}" ${String(c.id) === String(sel) ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+const KIND_ORDER = { expense: 0, income: 1, transfer: 2 };
+const KIND_LABEL = { expense: 'Ausgaben', income: 'Einnahmen', transfer: 'Umbuchungen / Sparen' };
+function catTree(kinds) {
+  const cats = state.cats.filter(c => !kinds || kinds.includes(c.kind));
+  const byName = (a, b) => a.name.localeCompare(b.name, 'de');
+  return cats.filter(c => !c.parent_id)
+    .sort((a, b) => (KIND_ORDER[a.kind] - KIND_ORDER[b.kind]) || byName(a, b))
+    .map(c => ({ ...c, children: cats.filter(x => x.parent_id === c.id).sort(byName) }));
+}
+const catOptions = (sel, kinds) => {
+  const opt = (c, label) => `<option value="${c.id}" ${String(c.id) === String(sel) ? 'selected' : ''}>${esc(label || c.name)}</option>`;
+  return catTree(kinds).map(t => t.children.length
+    ? `<optgroup label="${esc(t.name)}">${opt(t, t.name + ' (allgemein)')}${t.children.map(c => opt(c)).join('')}</optgroup>` : opt(t)).join('');
+};
 
 function monthToolbar(withAccount = true) {
   return `<div class="toolbar">
@@ -151,13 +162,18 @@ async function viewOverview() {
     ${hasData ? `<div class="grid two">
       <div class="card"><h2>Ausgaben nach Kategorie</h2>
         ${o.categories.length ? o.categories.map(c => {
-          const w = Math.min(100, Math.max(0, c.spent_cents) / maxSpent * 100);
-          const proj = o.is_current && c.budget_cents ? Math.min(100, c.projected_cents / maxSpent * 100) : null;
-          const bud = c.budget_cents ? `<small>von ${eur0(c.budget_cents)} · <span class="pill ${c.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten', none: '' }[c.status]}</span></small>` : (c.avg3_cents ? `<small>Ø 3 Mon. ${eur0(c.avg3_cents)}</small>` : '');
-          return `<div class="cat-row" data-cat="${c.id}" title="Umsätze anzeigen">
-            <span class="cat-name"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>
-            <div class="bar"><div class="fill ${c.status === 'none' ? '' : c.status}" style="width:${w}%;${c.status === 'none' ? `background:${esc(c.color)}` : ''}"></div>${proj != null ? `<div class="proj" style="left:${proj}%" title="Prognose Monatsende: ${eur(c.projected_cents)}"></div>` : ''}</div>
-            <span class="amt">${eur(c.spent_cents)}${bud}</span></div>`;
+          const row = (c, child) => {
+            const w = Math.min(100, Math.max(0, c.spent_cents) / maxSpent * 100);
+            const proj = o.is_current && c.budget_cents ? Math.min(100, c.projected_cents / maxSpent * 100) : null;
+            const bud = c.budget_cents ? `<small>von ${eur0(c.budget_cents)} · <span class="pill ${c.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten', none: '' }[c.status]}</span></small>` : (c.avg3_cents ? `<small>Ø 3 Mon. ${eur0(c.avg3_cents)}</small>` : '');
+            const toggle = !child && c.children && c.children.length ? `<button class="chev" type="button" data-toggle="${c.id}" aria-expanded="false" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : (child ? '' : '<span class="chev-gap"></span>');
+            return `<div class="cat-row${child ? ' child' : ''}" data-cat="${c.id}" ${child ? `data-parent="${child}" hidden` : ''} title="Umsätze anzeigen">
+              <span class="cat-name">${toggle}<span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>
+              <div class="bar"><div class="fill ${c.status === 'none' ? '' : c.status}" style="width:${w}%;${c.status === 'none' ? `background:${esc(c.color)}` : ''}"></div>${proj != null ? `<div class="proj" style="left:${proj}%" title="Prognose Monatsende: ${eur(c.projected_cents)}"></div>` : ''}</div>
+              <span class="amt">${eur(c.spent_cents)}${bud}</span></div>`;
+          };
+          const rest = c.own_cents && c.children.length ? [{ id: c.id, name: 'ohne Unterkategorie', color: c.color, spent_cents: c.own_cents, budget_cents: null, projected_cents: c.own_cents, avg3_cents: 0, status: 'none' }] : [];
+          return row(c, 0) + [...c.children, ...rest].map(k => row(k, c.id)).join('');
         }).join('') : '<p class="muted">Keine Ausgaben in diesem Monat.</p>'}
       </div>
       <div style="display:grid;gap:1rem;align-content:start">
@@ -170,7 +186,16 @@ async function viewOverview() {
         </div>` : ''}
       </div></div>` : `<div class="card empty">Für ${esc(monthName(state.month))} liegen keine Umsätze vor.</div>`}`;
   wireToolbar(route);
-  $$('.cat-row', v).forEach(r => r.onclick = () => { location.hash = `#/umsaetze?month=${state.month}&category_id=${r.dataset.cat}`; });
+  $$('.cat-row', v).forEach(r => r.onclick = e => {
+    const t = e.target.closest('[data-toggle]');
+    if (t) {
+      const open = t.getAttribute('aria-expanded') !== 'true';
+      t.setAttribute('aria-expanded', String(open));
+      $$(`.cat-row[data-parent="${t.dataset.toggle}"]`, v).forEach(x => { x.hidden = !open; });
+      return;
+    }
+    location.hash = `#/umsaetze?month=${state.month}&category_id=${r.dataset.cat}`;
+  });
 }
 
 const txFilter = { q: '', category_id: '', month: null, all: false };
@@ -243,19 +268,29 @@ function askRule(sel) {
 async function viewBudgets() {
   const v = $('#view');
   const [o, sug] = await Promise.all([api(`/analysis/overview?month=${state.month}`), api(`/budgets/suggestions?month=${state.month}`)]);
-  const spent = Object.fromEntries(o.categories.map(c => [c.id, c]));
-  const exp = state.cats.filter(c => c.kind === 'expense');
+  const spent = {};
+  o.categories.forEach(c => { spent[c.id] = c; (c.children || []).forEach(k => { if (k.id !== c.id) spent[k.id] = k; }); });
+  const exp = catTree(['expense']);
   v.innerHTML = monthToolbar(false) + `
     <div class="card"><div class="row" style="margin-bottom:.6rem"><h2 style="margin:0">Monatsbudgets je Kategorie</h2><span class="spacer"></span>
       <button class="btn" id="b-sug" ${sug.suggestions.length ? '' : 'disabled'}>Vorschläge übernehmen (Ø 3 Monate)</button></div>
       <p class="muted" style="margin-top:0">Gesamtbudget: <b>${eur0(o.total_budget_cents)}</b> · ausgegeben: <b>${eur0(o.expenses_cents)}</b></p>
       <div class="table-wrap"><table class="stack"><thead><tr><th>Kategorie</th><th class="num">Ø 3 Monate</th><th class="num">${esc(monthName(state.month))}</th><th class="num">Budget / Monat (€)</th><th>Status</th></tr></thead><tbody>
-      ${exp.map(c => { const s = spent[c.id] || {}; const b = c.budget_cents; return `<tr><td class="nm"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</td>
+      ${exp.flatMap(t => [[t, false], ...t.children.map(k => [k, true])]).map(([c, child]) => { const s = spent[c.id] || {}; const b = c.budget_cents;
+        const hasKids = !child && c.children.length; const eff = hasKids && !b && s.budget_cents ? s.budget_cents : null;
+        const open = child && (s.spent_cents || b || (s.avg3_cents || 0));
+        const chev = hasKids ? `<button class="chev" type="button" data-btoggle="${c.id}" aria-expanded="${c.children.some(k => (spent[k.id] || {}).spent_cents || k.budget_cents) ? 'true' : 'false'}" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : '';
+        return `<tr class="${child ? 'sub' : ''}" ${child ? `data-bparent="${c.parent_id}" ${open ? '' : 'hidden'}` : ''}><td class="nm">${chev}<span class="dot" style="background:${esc(c.color)}"></span><span class="nmtxt">${esc(c.name)}${hasKids ? ' <span class="muted">· inkl. Unterkategorien</span>' : ''}</span></td>
         <td class="num muted" data-l="Ø 3 Monate">${s.avg3_cents ? eur0(s.avg3_cents) : '–'}</td><td class="num" data-l="${esc(monthName(state.month))}">${eur(s.spent_cents || 0)}</td>
-        <td class="num" data-l="Budget (€)"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="–" style="text-align:right"></td>
+        <td class="num" data-l="Budget (€)"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="${eff ? eur0(eff) + ' (Summe)' : '–'}" style="text-align:right"></td>
         <td class="st">${s.status && s.status !== 'none' ? `<span class="pill ${s.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten' }[s.status]}</span>` : ''}</td></tr>`; }).join('')}
       </tbody></table></div></div>`;
   wireToolbar(viewBudgets);
+  $$('[data-btoggle]', v).forEach(t => t.onclick = () => {
+    const openNow = t.getAttribute('aria-expanded') !== 'true';
+    t.setAttribute('aria-expanded', String(openNow));
+    $$(`tr[data-bparent="${t.dataset.btoggle}"]`, v).forEach(r => { r.hidden = !openNow; });
+  });
   $$('.bud', v).forEach(i => i.onchange = async () => {
     const cents = i.value === '' ? null : Math.round(parseFloat(i.value) * 100);
     try { await api(`/budgets/${i.dataset.id}`, { method: 'PUT', json: { monthly_cents: cents } }); await loadMeta(); toast('Budget gespeichert'); viewBudgets(); } catch (e) { toast(e.message, true); }
@@ -413,6 +448,13 @@ async function viewRules() {
       <p class="muted" style="margin-top:0">Überweisungen an dich selbst (z. B. ING → comdirect) sollen weder Ausgaben noch Einnahmen sein. Namen kommagetrennt:</p>
       <input id="own-names" value="${esc(s.own_names)}" placeholder="Max Mustermann, M. Mustermann" style="width:100%">
       <div class="actions"><button class="btn" id="own-save">Speichern</button></div></div></div>
+    <div class="card" style="margin-top:1rem"><div class="row" style="margin-bottom:.4rem"><h2 style="margin:0">Kategorien &amp; Unterkategorien</h2><span class="spacer"></span>
+      <button class="btn" id="cat-tpl">Vorlage anwenden</button><button class="btn primary" id="cat-add">Neue Kategorie</button></div>
+      <p class="muted" style="margin-top:0;font-size:.86rem">Unterkategorien sind optional. Eine Oberkategorie zählt ihre eigenen Umsätze plus alle Unterkategorien zusammen (Übersicht, Diagramme, Budget).</p>
+      ${catTree().map(t => `<div class="cat-mgmt"><div class="list-item"><span class="dot" style="background:${esc(t.color)}"></span><div class="grow"><b>${esc(t.name)}</b> <span class="muted">${KIND_LABEL[t.kind]}${t.children.length ? ` · ${t.children.length} Unterkategorien` : ''}</span></div>
+        <div class="acts"><button class="btn small ghost" data-cat-sub="${t.id}">+ Unterkategorie</button><button class="btn small ghost" data-cat-edit="${t.id}">Bearbeiten</button><button class="btn small ghost danger" data-cat-del="${t.id}">Löschen</button></div></div>
+        ${t.children.map(k => `<div class="list-item child-item"><div class="grow">${esc(k.name)}</div><div class="acts"><button class="btn small ghost" data-cat-edit="${k.id}">Bearbeiten</button><button class="btn small ghost danger" data-cat-del="${k.id}">Löschen</button></div></div>`).join('')}</div>`).join('')}
+    </div>
     <div class="card" style="margin-top:1rem"><h2>Deine Regeln (${r.rules.length})</h2>
       ${r.rules.map(x => `<div class="list-item"><div class="grow"><code>${esc(x.pattern)}</code> → <b>${esc(x.category)}</b> <span class="muted">(${{ any: 'alle', in: 'Einnahmen', out: 'Ausgaben' }[x.direction]})</span></div>
       <button class="btn small ghost danger" data-del="${x.id}">Löschen</button></div>`).join('') || '<p class="muted">Noch keine eigenen Regeln. Tipp: In der Umsatzliste eine Kategorie ändern und „Regel anlegen“ wählen.</p>'}</div>`;
@@ -423,7 +465,48 @@ async function viewRules() {
   };
   $('#own-save').onclick = async () => { const x = await api('/settings', { method: 'PUT', json: { own_names: $('#own-names').value } }); toast(`Gespeichert · ${x.recategorized} Umsätze geändert`); };
   $('#reapply').onclick = async () => { const x = await api('/rules/apply', { json: {} }); toast(`${x.recategorized} Umsätze neu kategorisiert`); };
-  v.onclick = async e => { const b = e.target.closest('[data-del]'); if (b) { await api(`/rules/${b.dataset.del}`, { method: 'DELETE' }); viewRules(); } };
+  $('#cat-add').onclick = () => categoryDialog();
+  $('#cat-tpl').onclick = async () => {
+    if (!confirm('Die Standardkategorien werden in die Vorlage mit Ober- und Unterkategorien überführt (u. a. „Lebensmittel“ → „Lebensmittel / Getränke“ unter „Lebenshaltung“). Umsätze, Budgets und eigene Regeln bleiben erhalten. Fortfahren?')) return;
+    try { const x = await api('/categories/template', { json: {} }); await loadMeta(); toast(`Vorlage angewendet · ${x.created} neu, ${x.renamed} umbenannt`); viewRules(); } catch (err) { toast(err.message, true); }
+  };
+  v.onclick = async e => {
+    const b = e.target.closest('[data-del]');
+    if (b) { await api(`/rules/${b.dataset.del}`, { method: 'DELETE' }); return viewRules(); }
+    const sub = e.target.closest('[data-cat-sub]'), ed = e.target.closest('[data-cat-edit]'), del = e.target.closest('[data-cat-del]');
+    if (sub) categoryDialog(null, Number(sub.dataset.catSub));
+    if (ed) categoryDialog(state.cats.find(c => String(c.id) === ed.dataset.catEdit));
+    if (del) {
+      const c = state.cats.find(x => String(x.id) === del.dataset.catDel);
+      if (confirm(`Kategorie „${c.name}“ löschen? Ihre Umsätze werden neu zugeordnet; Unterkategorien rücken auf die oberste Ebene.`)) {
+        await api(`/categories/${c.id}`, { method: 'DELETE' }); await loadMeta(); toast('Kategorie gelöscht'); viewRules();
+      }
+    }
+  };
+}
+
+function categoryDialog(c = null, parentId = null) {
+  const tops = catTree().filter(t => !c || t.id !== c.id);
+  const hasKids = c && state.cats.some(x => x.parent_id === c.id);
+  const parent = c ? c.parent_id : parentId;
+  const d = openDialog(`<form id="cat-form"><h3>${c ? 'Kategorie bearbeiten' : (parentId ? 'Neue Unterkategorie' : 'Neue Kategorie')}</h3>
+    <label>Name<input name="name" value="${esc(c?.name || '')}" required autocomplete="off"></label>
+    <label>Oberkategorie (optional)<select name="parent_id" ${hasKids ? 'disabled' : ''}><option value="">– keine (oberste Ebene) –</option>${tops.filter(t => !c || t.kind === c.kind).map(t => `<option value="${t.id}" ${t.id === parent ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label>
+    ${c ? '' : `<label>Art (bei Oberkategorie)<select name="kind"><option value="expense">Ausgabe</option><option value="income">Einnahme</option><option value="transfer">Umbuchung / Sparen</option></select></label>`}
+    <label>Farbe<input type="color" name="color" value="${esc(c?.color || '#4f7cff')}" style="height:44px;padding:.2rem"></label>
+    <div class="actions"><button type="button" class="btn" id="c-cancel">Abbrechen</button><button class="btn primary">Speichern</button></div></form>`);
+  $('#c-cancel', d).onclick = closeDialog;
+  $('#cat-form', d).onsubmit = async e => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.target));
+    const body = { name: f.name, color: f.color };
+    if (!hasKids) body.parent_id = f.parent_id ? Number(f.parent_id) : null;
+    try {
+      if (c) await api(`/categories/${c.id}`, { method: 'PATCH', json: body });
+      else await api('/categories', { json: { ...body, kind: f.kind || 'expense' } });
+      closeDialog(); await loadMeta(); toast('Gespeichert'); viewRules();
+    } catch (err) { toast(err.message, true); }
+  };
 }
 
 // ---------------------------------------------------------------- Router / Login

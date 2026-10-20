@@ -87,20 +87,20 @@ class StoreAndCategorizeTests(unittest.TestCase):
                 r = conn.execute("SELECT c.name FROM transactions t JOIN categories c ON c.id=t.category_id "
                                  "WHERE t.payee LIKE ? LIMIT 1", (payee_like,)).fetchone()
                 return r[0]
-            self.assertEqual(cat("REWE%"), "Lebensmittel")
-            self.assertEqual(cat("Netflix%"), "Abos & Streaming")
-            self.assertEqual(cat("Musterfirma%"), "Gehalt")
-            self.assertEqual(cat("Hausverwaltung%"), "Wohnen")
-            self.assertEqual(cat("Stadtwerke%"), "Nebenkosten & Energie")
-            self.assertEqual(cat("Telekom%"), "Telefon & Internet")
+            self.assertEqual(cat("REWE%"), "Lebensmittel / Getränke")
+            self.assertEqual(cat("Netflix%"), "Abonnements")
+            self.assertEqual(cat("Musterfirma%"), "Lohn / Gehalt")
+            self.assertEqual(cat("Hausverwaltung%"), "Miete")
+            self.assertEqual(cat("Stadtwerke%"), "Strom / Wasser / Gas / Heizkosten")
+            self.assertEqual(cat("Telekom%"), "Telefon / Internet / Fernsehen")
             self.assertEqual(cat("HUK%"), "Versicherungen")
-            self.assertEqual(cat("Trade Republic%"), "Sparen & Investieren")
+            self.assertEqual(cat("Trade Republic%"), "Geldanlage")
             self.assertEqual(cat("Max Mustermann%"), "Umbuchung")
-            self.assertEqual(cat("ARAL%"), "Mobilität")
-            self.assertEqual(cat("Booking%"), "Reisen")
-            self.assertEqual(cat("McFit%"), "Freizeit & Unterhaltung")
+            self.assertEqual(cat("ARAL%"), "Tanken")
+            self.assertEqual(cat("Booking%"), "Hotel / Unterkunft")
+            self.assertEqual(cat("McFit%"), "Sport / Fitness")
             self.assertEqual(cat("Apotheke%"), "Gesundheit")
-            self.assertEqual(cat("Geldautomat%"), "Bargeld")
+            self.assertEqual(cat("Geldautomat%"), "Bargeldauszahlung")
             # Steuererstattung (Eingang) darf nicht als Ausgabe "Gebühren & Steuern" enden
             r = conn.execute("SELECT c.kind FROM transactions t JOIN categories c ON c.id=t.category_id WHERE t.payee LIKE 'Finanzamt%'").fetchone()
             self.assertEqual(r[0], "income")
@@ -109,10 +109,10 @@ class StoreAndCategorizeTests(unittest.TestCase):
         with session() as conn:
             cz = Categorizer(conn)
             cat = lambda p, a=-1000: conn.execute("SELECT name FROM categories WHERE id=?", (cz.categorize(p, "", "", a),)).fetchone()[0]
-            self.assertEqual(cat("Foo2 GmbH"), "Sonstiges")           # "o2" darf nicht in "Foo2" matchen
-            self.assertEqual(cat("O2 Telefonica"), "Telefon & Internet")
+            self.assertEqual(cat("Foo2 GmbH"), "Sonstige Unkategorisierte Ausgaben")           # "o2" darf nicht in "Foo2" matchen
+            self.assertEqual(cat("O2 Telefonica"), "Telefon / Internet / Fernsehen")
             self.assertEqual(cat("Praxis Dr. Meier"), "Gesundheit")
-            self.assertEqual(cat("Überweisung an Freund"), "Sonstiges")
+            self.assertEqual(cat("Überweisung an Freund"), "Sonstige Unkategorisierte Ausgaben")
             self.assertEqual(cat("Unbekannt", 5000), "Sonstige Einnahmen")
 
     def test_manual_override_and_rule(self):
@@ -136,6 +136,110 @@ class StoreAndCategorizeTests(unittest.TestCase):
         self.assertGreater(r.json()["recategorized"], 0)
         others = [t for t in c.get("/api/transactions?q=zalando&limit=50").json()["transactions"]]
         self.assertTrue(all(t["category"] == "Bildung" for t in others))
+
+
+class SubcategoryTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.environ["FINANZ_DB"] = os.path.join(self.tmp, "t.db")
+        init_db()
+
+    def _ids(self, conn):
+        return {r["name"]: r["id"] for r in conn.execute("SELECT id,name FROM categories")}
+
+    def test_template_structure(self):
+        with session() as conn:
+            ids = self._ids(conn)
+            par = {r["name"]: r["parent"] for r in conn.execute(
+                "SELECT c.name, p.name parent FROM categories c LEFT JOIN categories p ON p.id=c.parent_id")}
+            self.assertEqual(par["Tanken"], "Auto und öffentliche Verkehrsmittel")
+            self.assertEqual(par["Lohn / Gehalt"], "Einnahmen")
+            self.assertEqual(par["Geldanlage"], "Sparen und Anlegen")
+            self.assertIsNone(par["Wohnen"])
+            self.assertEqual(conn.execute("SELECT kind FROM categories WHERE name='Einnahmen'").fetchone()[0], "income")
+            self.assertEqual(conn.execute("SELECT kind FROM categories WHERE name='Geldanlage'").fetchone()[0], "transfer")
+            before = conn.execute("SELECT COUNT(*) FROM categories").fetchone()[0]
+            from app.category_tree import apply_template
+            apply_template(conn)                                   # idempotent
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM categories").fetchone()[0], before)
+            self.assertIn("Bargeldauszahlung", ids)
+
+    def test_migration_of_old_database(self):
+        """Alte DB ohne parent_id und mit Alt-Namen: Umsätze bleiben, Kategorien werden einsortiert."""
+        import sqlite3
+        path = os.path.join(self.tmp, "old.db")
+        os.environ["FINANZ_DB"] = path
+        conn = sqlite3.connect(path)
+        conn.executescript("""
+        CREATE TABLE categories (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE,
+          kind TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#9aa0a6');
+        INSERT INTO categories(name,kind,color) VALUES('Lebensmittel','expense','#f2a33a'),('Gehalt','income','#2e9e6b');
+        """)
+        conn.commit(); conn.close()
+        init_db()
+        with session() as conn:
+            cols = [r["name"] for r in conn.execute("PRAGMA table_info(categories)")]
+            self.assertIn("parent_id", cols)
+            # Alt-Kategorien werden nur auf Wunsch (Vorlage) umgebaut
+            self.assertEqual(conn.execute("SELECT parent_id FROM categories WHERE name='Lebensmittel'").fetchone()[0], None)
+            from app.category_tree import apply_template
+            apply_template(conn)
+            r = conn.execute("SELECT c.name, p.name parent FROM categories c JOIN categories p ON p.id=c.parent_id "
+                             "WHERE c.name='Lebensmittel / Getränke'").fetchone()
+            self.assertEqual(r["parent"], "Lebenshaltung")
+
+    def test_rollup_budget_and_filter(self):
+        from app.main import create_app
+        from starlette.testclient import TestClient
+        os.environ["APP_PASSWORD"] = "pw"
+        c = TestClient(create_app())
+        c.post("/api/login", json={"password": "pw"})
+        cats = {x["name"]: x for x in c.get("/api/categories").json()["categories"]}
+        acc = c.post("/api/accounts", json={"name": "A", "bank": "ing"}).json()["id"]
+        with session() as conn:
+            for i, (payee, amount, cat) in enumerate([("REWE Markt", -3000, "Lebensmittel / Getränke"),
+                                                      ("Friseur Schick", -2000, "Frisör / Wellness / Schönheitspflege")]):
+                conn.execute("INSERT INTO transactions(account_id,booking_date,payee,amount_cents,category_id,hash,created_at) "
+                             "VALUES(?,?,?,?,?,?,'x')", (acc, f"2026-10-0{5 + i}", payee, amount, cats[cat]["id"], f"h{i}"))
+        top = cats["Lebenshaltung"]["id"]
+        o = c.get("/api/analysis/overview?month=2026-10").json()
+        t = next(x for x in o["categories"] if x["id"] == top)
+        self.assertEqual(t["spent_cents"], 5000)                   # 30 € + 20 € aufsummiert
+        self.assertEqual({k["name"]: k["spent_cents"] for k in t["children"]},
+                         {"Lebensmittel / Getränke": 3000, "Frisör / Wellness / Schönheitspflege": 2000})
+        self.assertEqual(o["expenses_cents"], 5000)                # keine Doppelzählung
+        # Filter nach Oberkategorie schließt Unterkategorien ein
+        self.assertEqual(c.get(f"/api/transactions?category_id={top}").json()["total"], 2)
+        # Budget auf Oberkategorie hat Vorrang vor Summe der Unterbudgets
+        c.put(f"/api/budgets/{cats['Lebensmittel / Getränke']['id']}", json={"monthly_cents": 10000})
+        c.put(f"/api/budgets/{top}", json={"monthly_cents": 20000})
+        o = c.get("/api/analysis/overview?month=2026-10").json()
+        self.assertEqual(o["total_budget_cents"], 20000)
+        self.assertEqual(next(x for x in o["categories"] if x["id"] == top)["budget_cents"], 20000)
+
+    def test_category_api_rules(self):
+        from app.main import create_app
+        from starlette.testclient import TestClient
+        os.environ["APP_PASSWORD"] = "pw"
+        c = TestClient(create_app())
+        c.post("/api/login", json={"password": "pw"})
+        cats = {x["name"]: x for x in c.get("/api/categories").json()["categories"]}
+        wohnen = cats["Wohnen"]["id"]
+        r = c.post("/api/categories", json={"name": "Nebenkosten Haus", "parent_id": wohnen, "kind": "income"})
+        self.assertEqual(r.status_code, 201)
+        new = r.json()["id"]
+        got = {x["id"]: x for x in c.get("/api/categories").json()["categories"]}[new]
+        self.assertEqual((got["kind"], got["parent_id"]), ("expense", wohnen))   # erbt Art vom Elternteil
+        # keine zweite Ebene
+        self.assertEqual(c.post("/api/categories", json={"name": "Tief", "parent_id": new}).status_code, 400)
+        self.assertEqual(c.patch(f"/api/categories/{wohnen}", json={"parent_id": cats["Freizeit"]["id"]}).status_code, 400)
+        # andere Art verboten, Umbenennen und Löschen des Elternteils lässt Kinder aufrücken
+        self.assertEqual(c.patch(f"/api/categories/{new}", json={"parent_id": cats["Einnahmen"]["id"]}).status_code, 400)
+        self.assertEqual(c.patch(f"/api/categories/{new}", json={"name": "Haus-NK"}).status_code, 200)
+        self.assertEqual(c.delete(f"/api/categories/{wohnen}").status_code, 200)
+        got = {x["id"]: x for x in c.get("/api/categories").json()["categories"]}[new]
+        self.assertIsNone(got["parent_id"])
+        self.assertEqual(c.post("/api/categories/template", json={}).status_code, 200)
 
 
 class AnalysisTests(unittest.TestCase):
@@ -162,10 +266,13 @@ class AnalysisTests(unittest.TestCase):
 
     def test_budget_status_and_projection(self):
         with session() as conn:
-            cid = conn.execute("SELECT id FROM categories WHERE name='Lebensmittel'").fetchone()[0]
+            cid = conn.execute("SELECT id FROM categories WHERE name='Lebensmittel / Getränke'").fetchone()[0]
             conn.execute("INSERT INTO budgets VALUES(?,?)", (cid, 5000))
             o = analysis.overview(conn, "2026-10", today=TODAY)
-            c = next(x for x in o["categories"] if x["name"] == "Lebensmittel")
+            top = next(x for x in o["categories"] if x["name"] == "Lebenshaltung")
+            c = next(x for x in top["children"] if x["name"] == "Lebensmittel / Getränke")
+            self.assertEqual(top["spent_cents"] >= c["spent_cents"], True)
+            self.assertEqual(top["budget_cents"], 5000)          # Summe der Unterkategorie-Budgets
             self.assertEqual(c["status"], "over" if c["spent_cents"] > 5000 else "warn")
             self.assertTrue(o["is_current"])
             self.assertEqual(o["elapsed_days"], 18)
@@ -181,7 +288,7 @@ class AnalysisTests(unittest.TestCase):
                 self.assertEqual(m["income_cents"], 285000 + (31250 if m["month"] == "2026-07" else 0), m["month"])
             sug = analysis.budget_suggestions(conn, "2026-10")
             names = {x["name"]: x["suggested_cents"] for x in sug}
-            self.assertEqual(names["Wohnen"], 95000)
+            self.assertEqual(names["Miete"], 95000)
             self.assertTrue(all(v % 1000 == 0 for v in names.values()))
 
     def test_recurring(self):
@@ -250,11 +357,13 @@ class ApiTests(unittest.TestCase):
         t = c.get("/api/transactions?month=2026-10&limit=5").json()
         self.assertEqual(len(t["transactions"]), 5)
         rid = c.get("/api/categories").json()["categories"]
-        lm = next(x for x in rid if x["name"] == "Lebensmittel")["id"]
+        lm = next(x for x in rid if x["name"] == "Lebensmittel / Getränke")["id"]
         self.assertEqual(c.put(f"/api/budgets/{lm}", json={"monthly_cents": 40000}).status_code, 200)
         o = c.get("/api/analysis/overview?month=2026-09").json()
         self.assertEqual(o["income_cents"], 285000)
-        self.assertEqual(next(x for x in o["categories"] if x["name"] == "Lebensmittel")["budget_cents"], 40000)
+        top = next(x for x in o["categories"] if x["name"] == "Lebenshaltung")
+        self.assertEqual(top["budget_cents"], 40000)
+        self.assertEqual(next(x for x in top["children"] if x["name"] == "Lebensmittel / Getränke")["budget_cents"], 40000)
         self.assertEqual(c.get("/api/analysis/overview?month=abc").status_code, 400)
         self.assertGreater(len(c.get("/api/analysis/recurring").json()["recurring"]), 3)
         self.assertEqual(c.get("/").status_code, 200)
@@ -468,9 +577,9 @@ class ComdirectApiTests(unittest.TestCase):
         with session() as conn:
             r = {x["payee"]: x for x in conn.execute("SELECT t.*, c.name cat FROM transactions t JOIN categories c ON c.id=t.category_id")}
             self.assertEqual(r["Netflix International B.V."]["amount_cents"], -1299)
-            self.assertEqual(r["Netflix International B.V."]["cat"], "Abos & Streaming")
+            self.assertEqual(r["Netflix International B.V."]["cat"], "Abonnements")
             self.assertEqual(r["Musterfirma GmbH"]["amount_cents"], 285000)
-            self.assertEqual(r["Musterfirma GmbH"]["cat"], "Gehalt")
+            self.assertEqual(r["Musterfirma GmbH"]["cat"], "Lohn / Gehalt")
 
     def test_mtan_flow(self):
         job = comdirect_sync.start_sync(self.acc, "4711", 90, self._factory(False))
