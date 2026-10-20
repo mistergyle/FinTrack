@@ -292,6 +292,21 @@ class SubcategoryTests(unittest.TestCase):
         self.assertEqual(o["total_budget_cents"], 20000)
         self.assertEqual(next(x for x in o["categories"] if x["id"] == top)["budget_cents"], 20000)
 
+    def test_delete_filtered_transactions(self):
+        os.environ["APP_PASSWORD"] = "pw"
+        c = TestClient(create_app())
+        c.post("/api/login", json={"password": "pw"})
+        acc = c.post("/api/accounts", json={"name": "A", "bank": "ing"}).json()["id"]
+        with session() as conn:
+            for i, (d, p) in enumerate([("2026-10-01", "Alpha"), ("2026-10-02", "Alpha"), ("2026-11-01", "Alpha"), ("2026-10-03", "Beta")]):
+                conn.execute("INSERT INTO transactions(account_id,booking_date,payee,amount_cents,hash,created_at) VALUES(?,?,?,-100,?,'x')", (acc, d, p, f"d{i}"))
+        q = "month=2026-10&q=alpha"
+        self.assertEqual(c.delete(f"/api/transactions?{q}").status_code, 400)           # expected fehlt
+        self.assertEqual(c.delete(f"/api/transactions?{q}&expected=5").status_code, 409)  # Anzahl stimmt nicht
+        r = c.delete(f"/api/transactions?{q}&expected=2")
+        self.assertEqual((r.status_code, r.json()["deleted"]), (200, 2))
+        self.assertEqual(c.get("/api/transactions").json()["total"], 2)                   # Nov-Alpha und Beta bleiben
+
     def test_year_overview(self):
         os.environ["APP_PASSWORD"] = "pw"
         c = TestClient(create_app())

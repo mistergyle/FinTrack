@@ -276,17 +276,19 @@ async function viewTransactions(params) {
       <select id="f-cat"><option value="">Alle Kategorien</option><option value="none" ${txFilter.category_id === 'none' ? 'selected' : ''}>Ohne Kategorie</option>${catOptions(txFilter.category_id)}</select>
       <label style="margin:0;display:flex;gap:.4rem;align-items:center"><input type="checkbox" id="f-all" ${txFilter.all ? 'checked' : ''} style="width:auto;margin:0"> alle Monate</label>
       <span class="spacer"></span><span id="tx-sum" class="muted"></span>
+      <button class="btn danger" id="tx-del" disabled title="Alle Umsätze löschen, die zu den aktuellen Filtern passen">Gefilterte löschen</button>
     </div>
     <div class="card" style="padding:.4rem .6rem"><div class="table-wrap"><table><thead><tr><th>Datum</th><th>Empfänger / Zweck</th><th>Konto</th><th>Kategorie</th><th class="num">Betrag</th></tr></thead><tbody id="tx-body"></tbody></table></div>
     <div class="row" style="justify-content:center;padding:.6rem"><button class="btn" id="more">Mehr laden</button></div></div>`;
   wireToolbar(() => viewTransactions(new URLSearchParams()));
-  let offset = 0;
+  let offset = 0, lastTotal = { n: 0, sum: 0 };
   const body = $('#tx-body');
   async function load(reset) {
     if (reset) { offset = 0; body.innerHTML = ''; }
     const p = base(); p.set('limit', 100); p.set('offset', offset);
     const d = await api('/transactions?' + p);
     $('#tx-sum').textContent = `${d.total} Umsätze · Summe ${eur(d.sum_cents)}`;
+    lastTotal = { n: d.total, sum: d.sum_cents }; $('#tx-del').disabled = !d.total;
     body.insertAdjacentHTML('beforeend', d.transactions.map(t => `<tr data-id="${t.id}">
       <td class="d">${esc(dateDe(t.booking_date))}</td>
       <td class="payee"><div class="p" title="${esc(t.payee)}">${esc(t.payee || t.booking_text || '–')}</div><div class="s" title="${esc(t.purpose)}">${esc(t.purpose)}</div></td>
@@ -297,6 +299,27 @@ async function viewTransactions(params) {
     $('#more').classList.toggle('hidden', offset >= d.total);
   }
   $('#more').onclick = () => load(false);
+  $('#tx-del').onclick = () => {
+    const parts = [txFilter.all ? 'alle Monate' : monthName(state.month)];
+    if (state.accountId) parts.push('Konto: ' + (state.accounts.find(a => String(a.id) === String(state.accountId))?.name || ''));
+    if (txFilter.category_id) parts.push('Kategorie: ' + (txFilter.category_id === 'none' ? 'ohne Kategorie' : (state.cats.find(c => String(c.id) === String(txFilter.category_id))?.name || '')));
+    if (txFilter.q) parts.push(`Suche: „${txFilter.q}“`);
+    const broad = txFilter.all && !state.accountId && !txFilter.category_id && !txFilter.q;
+    const d = openDialog(`<form id="del-form"><h3>${lastTotal.n} Umsätze löschen?</h3>
+      <p>Summe ${eur(lastTotal.sum)} · Filter: ${esc(parts.join(' · '))}</p>
+      <p class="muted" style="font-size:.86rem">Das lässt sich nicht rückgängig machen. Ein erneuter CSV-Import oder Abruf holt die Umsätze bei Bedarf wieder.</p>
+      ${broad ? '<p class="err" style="min-height:0"><b>Achtung:</b> Es sind keine Filter gesetzt – das löscht alle Umsätze aller Konten.</p><label>Zur Bestätigung „LÖSCHEN“ eingeben<input name="word" autocomplete="off" required></label>' : ''}
+      <div class="actions"><button type="button" class="btn" id="d-cancel">Abbrechen</button><button class="btn danger" style="border-color:var(--bad)">Endgültig löschen</button></div></form>`);
+    $('#d-cancel', d).onclick = closeDialog;
+    $('#del-form', d).onsubmit = async e => {
+      e.preventDefault();
+      if (broad && new FormData(e.target).get('word').trim().toUpperCase() !== 'LÖSCHEN') return toast('Bitte „LÖSCHEN“ eingeben.', true);
+      try {
+        const x = await api(`/transactions?${base()}&expected=${lastTotal.n}`, { method: 'DELETE' });
+        closeDialog(); toast(`${x.deleted} Umsätze gelöscht`); load(true);
+      } catch (err) { toast(err.message, true); }
+    };
+  };
   let t; $('#f-q').oninput = e => { clearTimeout(t); t = setTimeout(() => { txFilter.q = e.target.value; load(true); }, 250); };
   $('#f-cat').onchange = e => { txFilter.category_id = e.target.value; load(true); };
   $('#f-all').onchange = e => { txFilter.all = e.target.checked; load(true); };

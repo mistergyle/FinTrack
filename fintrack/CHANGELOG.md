@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- Umsätze: „Gefilterte löschen“ löscht alle Umsätze, die zu Monat/Jahr, Konto, Kategorie und Suche passen. Vorher Bestätigung mit Anzahl und Summe; ohne Filter muss „LÖSCHEN“ getippt werden.
+
 ## 0.6.2
 
 - Entfernt: Unterkategorie „Sonstige Unkategorisierte Ausgaben“. Nicht erkannte Ausgaben landen direkt in „Unkategorisierte Ausgaben“. Bestehende Umsätze werden beim Start automatisch dorthin verschoben.

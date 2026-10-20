@@ -289,8 +289,8 @@ async def sync_tan(request: Request):
 
 # ------------------------------------------------------------------ Umsätze
 
-async def list_transactions(request: Request):
-    p = request.query_params
+def _tx_filter(p) -> tuple[str, list]:
+    """WHERE-Klausel (Alias t) aus den Filter-Parametern der Umsatzliste."""
     where, args = ["1=1"], []
     if p.get("from"):
         where.append("t.booking_date >= ?"); args.append(p["from"])
@@ -311,9 +311,14 @@ async def list_transactions(request: Request):
         like = f"%{p['q'].lower()}%"
         where.append("(LOWER(t.payee) LIKE ? OR LOWER(t.purpose) LIKE ? OR LOWER(t.booking_text) LIKE ?)")
         args += [like, like, like]
+    return " AND ".join(where), args
+
+
+async def list_transactions(request: Request):
+    p = request.query_params
+    w, args = _tx_filter(p)
     limit = min(int(p.get("limit", 100)), 500)
     offset = int(p.get("offset", 0))
-    w = " AND ".join(where)
     with session() as conn:
         total = conn.execute(f"SELECT COUNT(*), COALESCE(SUM(t.amount_cents),0) FROM transactions t WHERE {w}", args).fetchone()
         rows = conn.execute(
@@ -323,6 +328,22 @@ async def list_transactions(request: Request):
             f"ORDER BY t.booking_date DESC, t.id DESC LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
         return JSONResponse({"total": total[0], "sum_cents": total[1],
                              "transactions": [{k: r[k] for k in r.keys() if k not in ("hash",)} for r in rows]})
+
+
+async def delete_transactions(request: Request):
+    """Löscht alle Umsätze, die zu den Filtern passen. `expected` muss der angezeigten Anzahl entsprechen."""
+    p = request.query_params
+    try:
+        expected = int(p.get("expected", ""))
+    except ValueError:
+        return err("expected (erwartete Anzahl) fehlt.")
+    w, args = _tx_filter(p)
+    with session() as conn:
+        n = conn.execute(f"SELECT COUNT(*) FROM transactions t WHERE {w}", args).fetchone()[0]
+        if n != expected:
+            return err(f"Die Auswahl hat sich geändert ({n} statt {expected} Umsätze). Bitte neu laden.", 409)
+        conn.execute(f"DELETE FROM transactions WHERE id IN (SELECT t.id FROM transactions t WHERE {w})", args)
+    return JSONResponse({"deleted": n})
 
 
 async def patch_transaction(request: Request):
@@ -574,6 +595,7 @@ routes = [
     Route("/api/sync/{job}", sync_status),
     Route("/api/sync/{job}/tan", sync_tan, methods=["POST"]),
     Route("/api/transactions", list_transactions),
+    Route("/api/transactions", delete_transactions, methods=["DELETE"]),
     Route("/api/transactions/{id:int}", patch_transaction, methods=["PATCH"]),
     Route("/api/categories", list_categories),
     Route("/api/categories", create_category, methods=["POST"]),
