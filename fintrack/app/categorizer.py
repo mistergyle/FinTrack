@@ -166,7 +166,7 @@ class Categorizer:
         cats = {r["name"]: r["id"] for r in conn.execute("SELECT id,name FROM categories")}
         self.cat_umbuchung = cats.get("Umbuchung")
         self.cat_other_in = cats.get("Sonstige Einnahmen")
-        self.cat_other_out = cats.get("Sonstige Unkategorisierte Ausgaben") or cats.get("Sonstiges")
+        self.cat_other_out = cats.get("Unkategorisierte Ausgaben") or cats.get("Sonstige Unkategorisierte Ausgaben") or cats.get("Sonstiges")
         self.own_ibans = {
             _normalize_iban(r["iban"]) for r in conn.execute("SELECT iban FROM accounts") if r["iban"]
         }

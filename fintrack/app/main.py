@@ -426,6 +426,9 @@ async def apply_category_template(request: Request):
 async def delete_category(request: Request):
     cid = int(request.path_params["id"])
     with session() as conn:
+        row = conn.execute("SELECT parent_id FROM categories WHERE id=?", (cid,)).fetchone()
+        if row and row["parent_id"]:      # Umsätze einer gelöschten Unterkategorie wandern zur Oberkategorie
+            conn.execute("UPDATE transactions SET category_id=? WHERE category_id=?", (row["parent_id"], cid))
         conn.execute("DELETE FROM categories WHERE id=?", (cid,))   # Unterkategorien rücken auf die oberste Ebene
         apply_rules(conn)
     return JSONResponse({"ok": True})

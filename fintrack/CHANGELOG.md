@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2
+
+- Entfernt: Unterkategorie „Sonstige Unkategorisierte Ausgaben“. Nicht erkannte Ausgaben landen direkt in „Unkategorisierte Ausgaben“. Bestehende Umsätze werden beim Start automatisch dorthin verschoben.
+- Beim Löschen einer Unterkategorie wandern ihre Umsätze zur Oberkategorie, statt keine Kategorie zu haben.
+
 ## 0.6.1
 
 - Behoben: Umsätze, die erst per FinTS abgerufen und danach per CSV importiert wurden (oder umgekehrt), erschienen doppelt, weil die Texte unterschiedlich getrennt sind. CSV-Importe gleichen jetzt wie der FinTS-/API-Abruf mit vorhandenen Umsätzen ab (gleiches Datum und Betrag, ähnlicher Text).

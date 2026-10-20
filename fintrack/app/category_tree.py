@@ -39,7 +39,7 @@ TREE: dict[str, tuple[str, str, list[str]]] = {
     "Bank": ("expense", "#a65e3a", ["Bankentgelte"]),
     "Sparen und Anlegen": ("transfer", "#3f8f5f", ["Geldanlage", "Altersvorsorge", "Bausparen"]),
     "Unkategorisierte Ausgaben": ("expense", "#9aa0a6", [
-        "Abgaben / Gebühren", "Bargeldauszahlung", "Sonstige Unkategorisierte Ausgaben"]),
+        "Abgaben / Gebühren", "Bargeldauszahlung"]),
 }
 
 # alter Standardname -> (neuer Name, Oberkategorie oder None = bleibt oberste Ebene)
@@ -58,7 +58,7 @@ RENAMES: dict[str, tuple[str, str | None]] = {
     "Reisen": ("Reise", None),
     "Bargeld": ("Bargeldauszahlung", "Unkategorisierte Ausgaben"),
     "Gebühren & Steuern": ("Abgaben / Gebühren", "Unkategorisierte Ausgaben"),
-    "Sonstiges": ("Sonstige Unkategorisierte Ausgaben", "Unkategorisierte Ausgaben"),
+    "Sonstiges": ("Unkategorisierte Ausgaben", None),
     "Sparen & Investieren": ("Sparen und Anlegen", None),
 }
 
@@ -163,3 +163,22 @@ def descendants(conn: sqlite3.Connection, category_id: int) -> list[int]:
     ids = [category_id]
     ids += [r["id"] for r in conn.execute("SELECT id FROM categories WHERE parent_id=?", (category_id,))]
     return ids
+
+
+RETIRED = "Sonstige Unkategorisierte Ausgaben"      # ab 0.6.2 entfallen, Umsätze liegen direkt auf der Oberkategorie
+
+
+def retire_category(conn: sqlite3.Connection) -> bool:
+    """Einmalige Migration: Umsätze/Regeln der entfallenen Unterkategorie auf die Oberkategorie verschieben."""
+    row = _cat(conn, RETIRED)
+    if not row:
+        return False
+    parent = _cat(conn, "Unkategorisierte Ausgaben") or None
+    pid = parent["id"] if parent else _ensure(conn, "Unkategorisierte Ausgaben", "expense", "#9aa0a6", None)
+    if pid == row["id"]:
+        return False
+    conn.execute("UPDATE transactions SET category_id=? WHERE category_id=?", (pid, row["id"]))
+    conn.execute("UPDATE rules SET category_id=? WHERE category_id=?", (pid, row["id"]))
+    conn.execute("DELETE FROM budgets WHERE category_id=?", (row["id"],))
+    conn.execute("DELETE FROM categories WHERE id=?", (row["id"],))
+    return True

@@ -109,10 +109,10 @@ class StoreAndCategorizeTests(unittest.TestCase):
         with session() as conn:
             cz = Categorizer(conn)
             cat = lambda p, a=-1000: conn.execute("SELECT name FROM categories WHERE id=?", (cz.categorize(p, "", "", a),)).fetchone()[0]
-            self.assertEqual(cat("Foo2 GmbH"), "Sonstige Unkategorisierte Ausgaben")           # "o2" darf nicht in "Foo2" matchen
+            self.assertEqual(cat("Foo2 GmbH"), "Unkategorisierte Ausgaben")           # "o2" darf nicht in "Foo2" matchen
             self.assertEqual(cat("O2 Telefonica"), "Telefon / Internet / Fernsehen")
             self.assertEqual(cat("Praxis Dr. Meier"), "Gesundheit")
-            self.assertEqual(cat("Überweisung an Freund"), "Sonstige Unkategorisierte Ausgaben")
+            self.assertEqual(cat("Überweisung an Freund"), "Unkategorisierte Ausgaben")
             self.assertEqual(cat("Unbekannt", 5000), "Sonstige Einnahmen")
 
     def test_manual_override_and_rule(self):
@@ -225,6 +225,18 @@ class SubcategoryTests(unittest.TestCase):
             apply_template(conn)                                   # idempotent
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM categories").fetchone()[0], before)
             self.assertIn("Bargeldauszahlung", ids)
+
+    def test_retired_subcategory_is_migrated(self):
+        from app.category_tree import retire_category
+        with session() as conn:
+            top = conn.execute("SELECT id FROM categories WHERE name='Unkategorisierte Ausgaben'").fetchone()[0]
+            self.assertIsNone(conn.execute("SELECT 1 FROM categories WHERE name='Sonstige Unkategorisierte Ausgaben'").fetchone())
+            sub = conn.execute("INSERT INTO categories(name,kind,color,parent_id) VALUES('Sonstige Unkategorisierte Ausgaben','expense','#999',?)", (top,)).lastrowid
+            acc = conn.execute("INSERT INTO accounts(name,bank,created_at) VALUES('A','ing','x')").lastrowid
+            conn.execute("INSERT INTO transactions(account_id,booking_date,payee,amount_cents,category_id,hash,created_at) VALUES(?,?,?,?,?,?,'x')",
+                         (acc, "2026-10-01", "X", -100, sub, "m1"))
+            self.assertTrue(retire_category(conn))
+            self.assertEqual(conn.execute("SELECT category_id FROM transactions").fetchone()[0], top)
 
     def test_migration_of_old_database(self):
         """Alte DB ohne parent_id und mit Alt-Namen: Umsätze bleiben, Kategorien werden einsortiert."""

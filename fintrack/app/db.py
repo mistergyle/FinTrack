@@ -108,6 +108,10 @@ def init_db() -> None:
         if "parent_id" not in cols:   # Migration älterer Datenbanken
             conn.execute("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL")
         seed_defaults(conn)
+        if get_setting(conn, "migr_retire_sonstige", "") != "1":     # einmalig
+            from .category_tree import retire_category
+            retire_category(conn)
+            set_setting(conn, "migr_retire_sonstige", "1")
 
 
 def get_setting(conn: sqlite3.Connection, key: str, default: str = "") -> str:
