@@ -150,6 +150,51 @@ function lineChart(o) {
   return s + '</svg>';
 }
 
+// Sankey: Einnahmequellen -> Einnahmen -> Verwendung (Kategorien, Sparen, Übrig)
+function sankeyChart(o) {
+  const grp = (list, total) => {
+    list = list.filter(x => x.value > 0).sort((a, b) => b.value - a.value);
+    const small = list.filter(x => x.value / total < 0.025), big = list.filter(x => x.value / total >= 0.025);
+    if (small.length >= 2) big.push({ name: 'Weitere', value: small.reduce((s, x) => s + x.value, 0), color: '#9aa0a6' }); else big.push(...small);
+    if (big.length > 9) { const rest = big.splice(8); big.push({ name: 'Weitere', value: rest.reduce((s, x) => s + x.value, 0), color: '#9aa0a6' }); }
+    return big;
+  };
+  const exps = o.categories.filter(c => c.spent_cents > 0).map(c => ({ id: c.id, name: c.name, value: c.spent_cents, color: c.color }));
+  if (o.transfers_cents > 0) exps.push({ name: 'Sparen & Umbuchungen', value: o.transfers_cents, color: '#3f8f5f' });
+  const outTotal = exps.reduce((s, x) => s + x.value, 0);
+  const left = o.income_categories.map(c => ({ name: c.name, value: c.amount_cents, color: c.color }));
+  const inTotal = left.reduce((s, x) => s + x.value, 0);
+  const diff = inTotal - outTotal;
+  if (diff > 0) exps.push({ name: 'Übrig', value: diff, color: 'var(--good)' });
+  else if (diff < 0) left.push({ name: 'Mehr ausgegeben als eingenommen', value: -diff, color: 'var(--warn)' });
+  const total = Math.max(inTotal, outTotal);
+  if (total <= 0) return '';
+  const L = grp(left, total), R = grp(exps, total);
+  const W = chartW(1000), narrow = W < 480, nw = 10, g = 8;
+  const H = Math.max(260, Math.min(460, Math.max(L.length, R.length) * 34));
+  const scale = Math.min((H - g * (L.length - 1)) / total, (H - g * (R.length - 1)) / total);
+  const cx = Math.round(W / 2 - nw / 2), ch = total * scale, cy = (H - ch) / 2;
+  const cut = (s, n) => s.length > n ? s.slice(0, n - 1) + '…' : s;
+  const maxc = narrow ? 13 : 30;
+  const place = list => { const colH = list.reduce((s, x) => s + x.value * scale, 0) + g * (list.length - 1); let y = (H - colH) / 2; return list.map(x => { const h = x.value * scale, n = { ...x, y, h }; y += h + g; return n; }); };
+  const Ls = place(L), Rs = place(R);
+  let s = `<svg class="sk" viewBox="0 0 ${W} ${H + 24}" width="100%" role="img" aria-label="Sankey-Diagramm: Wohin fließen die Einnahmen">`;
+  s += `<g transform="translate(0,22)">`;
+  const ribbon = (x0, y0, x1, y1, h, color, title) => `<path d="M${x0},${y0} C${(x0 + x1) / 2},${y0} ${(x0 + x1) / 2},${y1} ${x1},${y1}" fill="none" stroke="${color}" stroke-width="${Math.max(1, h)}" opacity=".32"><title>${esc(title)}</title></path>`;
+  let off = cy; Ls.forEach(n => { s += ribbon(nw, n.y + n.h / 2, cx, off + n.h / 2, n.h, n.color, `${n.name}: ${eur(n.value)}`); off += n.h; });
+  off = cy; Rs.forEach(n => { s += ribbon(cx + nw, off + n.h / 2, W - nw, n.y + n.h / 2, n.h, n.color, `${n.name}: ${eur(n.value)}`); off += n.h; });
+  s += `<rect x="${cx}" y="${cy}" width="${nw}" height="${ch}" rx="3" fill="var(--accent)"/>`;
+  const lab = (n, x, anchor) => {
+    const two = n.h >= 30, mid = n.y + n.h / 2;
+    return two ? `<text x="${x}" y="${mid - 2}" text-anchor="${anchor}">${esc(cut(n.name, maxc))}</text><text class="v" x="${x}" y="${mid + 12}" text-anchor="${anchor}">${eur0(n.value)}</text>`
+      : `<text x="${x}" y="${mid + 4}" text-anchor="${anchor}">${esc(cut(n.name, maxc))} · ${eur0(n.value)}</text>`;
+  };
+  Ls.forEach(n => { s += `<g><title>${esc(n.name)}: ${eur(n.value)}</title><rect x="0" y="${n.y}" width="${nw}" height="${n.h}" rx="3" fill="${n.color}"/>${lab(n, nw + 6, 'start')}</g>`; });
+  Rs.forEach(n => { s += `<g ${n.id ? `class="sk-link" data-sk-cat="${n.id}"` : ''}><title>${esc(n.name)}: ${eur(n.value)}</title><rect x="${W - nw}" y="${n.y}" width="${nw}" height="${n.h}" rx="3" fill="${n.color}"/>${lab(n, W - nw - 6, 'end')}</g>`; });
+  s += `<text class="h" x="${cx + nw / 2}" y="-8" text-anchor="middle">Einnahmen ${eur0(inTotal)}</text></g></svg>`;
+  return s;
+}
+
 // ---------------------------------------------------------------- Ansichten
 async function viewOverview() {
   const v = $('#view');
@@ -171,6 +216,7 @@ async function viewOverview() {
       <div class="card kpi"><div class="label">Sparen &amp; Umbuchungen</div><div class="value">${eur(o.transfers_cents)}</div><div class="sub">zählt nicht als Ausgabe</div></div>
     </div>
     <div class="card" style="margin-bottom:1rem"><h2>Einnahmen &amp; Ausgaben · ${isYear(state.month) ? state.month : '12 Monate'}</h2>${barChart(ms.months, state.month)}</div>
+    ${hasData && (o.income_cents || o.expenses_cents) ? `<div class="card" style="margin-bottom:1rem"><h2>Wohin fließen die Einnahmen?</h2>${sankeyChart(o)}</div>` : ''}
     ${hasData ? `<div class="grid two">
       <div class="card"><h2>Ausgaben nach Kategorie</h2>
         ${o.categories.length ? o.categories.map(c => {
@@ -198,6 +244,7 @@ async function viewOverview() {
         </div>` : ''}
       </div></div>` : `<div class="card empty">Für ${esc(monthName(state.month))} liegen keine Umsätze vor.</div>`}`;
   wireToolbar(route);
+  $$('[data-sk-cat]', v).forEach(g => g.onclick = () => { location.hash = `#/umsaetze?month=${state.month}&category_id=${g.dataset.skCat}`; });
   $$('.cat-row', v).forEach(r => r.onclick = e => {
     const t = e.target.closest('[data-toggle]');
     if (t) {

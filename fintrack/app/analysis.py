@@ -116,6 +116,13 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
             key=lambda x: -x["spent_cents"])
         categories.append(e)
     categories.sort(key=lambda c: -c["spent_cents"])
+    inc: dict[int, int] = defaultdict(int)                 # Einnahmen je Oberkategorie (für das Sankey-Diagramm)
+    for r in rows:
+        if r["kind"] == "income" and r["s"] > 0:
+            inc[top_of.get(r["id"], r["id"])] += r["s"]
+    income_categories = sorted(
+        ({"id": cid, "name": meta[cid]["name"], "color": meta[cid]["color"], "amount_cents": v} for cid, v in inc.items() if cid in meta),
+        key=lambda x: -x["amount_cents"])
     total_budget = sum(c["budget_cents"] or 0 for c in categories)
 
     # Kumulierte Ausgaben pro Tag
@@ -152,7 +159,7 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
         "savings_rate": round((income - expenses) / income, 4) if income > 0 else None,
         "transfers_cents": transfers_out,
         "projected_expenses_cents": projected_total, "total_budget_cents": total_budget,
-        "categories": categories, "cumulative_cents": cumulative, "top_payees": top,
+        "categories": categories, "income_categories": income_categories, "cumulative_cents": cumulative, "top_payees": top,
     }
 
 

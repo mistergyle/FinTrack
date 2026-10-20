@@ -208,6 +208,7 @@ class SubcategoryTests(unittest.TestCase):
         self.assertEqual({k["name"]: k["spent_cents"] for k in t["children"]},
                          {"Lebensmittel / Getränke": 3000, "Frisör / Wellness / Schönheitspflege": 2000})
         self.assertEqual(o["expenses_cents"], 5000)                # keine Doppelzählung
+        self.assertIn("income_categories", o)
         # Filter nach Oberkategorie schließt Unterkategorien ein
         self.assertEqual(c.get(f"/api/transactions?category_id={top}").json()["total"], 2)
         # Budget auf Oberkategorie hat Vorrang vor Summe der Unterbudgets
@@ -233,6 +234,7 @@ class SubcategoryTests(unittest.TestCase):
         self.assertEqual(o["expenses_cents"], 3500)                    # nur 2026
         self.assertEqual(o["total_budget_cents"], 120000)              # Monatsbudget × 12
         self.assertEqual(o["days_in_month"], 365)
+        self.assertEqual(o["income_categories"], [])
         top = next(x for x in o["categories"] if x["name"] == "Lebenshaltung")
         self.assertEqual(top["avg3_cents"], 700)                       # Vergleichswert = Vorjahr
         ms = c.get("/api/analysis/monthly?months=12&end_month=2026-12").json()["months"]

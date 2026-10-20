@@ -238,3 +238,8 @@ table.stack td.nm .nmtxt, td.nm .nmtxt { min-width: 0; }
 @media (max-width: 640px) { .break { display: block; flex-basis: 100%; height: 0; } .seg { width: 100%; } .seg .btn { flex: 1; } }
 .ib.danger { color: var(--bad); }
 .ib.danger:hover { background: color-mix(in srgb, var(--bad) 14%, transparent); }
+
+svg.sk text { fill: var(--ink); font-size: 12px; paint-order: stroke; stroke: var(--card); stroke-width: 3px; stroke-linejoin: round; }
+svg.sk text.v { fill: var(--muted); font-size: 11px; }
+svg.sk text.h { font-weight: 600; font-size: 12.5px; }
+svg.sk .sk-link { cursor: pointer; }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.6.0
+
+- Übersicht: Sankey-Diagramm „Wohin fließen die Einnahmen?“ (Einnahmequellen → Einnahmen → Ausgabenkategorien, Sparen, Übrig). Antippen einer Kategorie öffnet die zugehörigen Umsätze. Funktioniert für Monat und Jahr, auch mobil.
+
 ## 0.5.1
 
 - Kategorie-Verwaltung: Löschen-Symbol als schlichter roter Papierkorb.
