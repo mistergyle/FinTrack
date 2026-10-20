@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.1
+
+- Mobil: Zeitraum-Leiste repariert (‹ Zeitraum › in einer Zeile, nichts läuft mehr über den Rand); Konto-, Kategorie- und Sortier-Auswahl über volle Breite. „Heute“ steckt auf dem Handy im Datepicker.
+
 ## 0.9.0
 
 - Neue Kategorien: „Bildung und Beruf“ (Weiterbildung, Dienstreise / Spesen, Sonstige), „Gesundheit“ (Apotheke / Medikamente, Arztbehandlung, Brille / Kontaktlinsen, Sonstige) und „Kinder“ (Kinderbetreuung, Schulgeld, Schulausflug, Kinderbekleidung, Spielwaren, Taschengeld, Freizeitaktivitäten, Pflegeprodukte, Unterhaltszahlungen, Sonstige). „Bildung“ wird zu „Bildung und Beruf“. Bestehende Installationen mit angewendeter Vorlage bekommen sie beim Start einmalig; passende Standardregeln wandern auf die Unterkategorien.
