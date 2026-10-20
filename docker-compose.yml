@@ -1,0 +1,15 @@
+services:
+  finanz:
+    build: .
+    restart: unless-stopped
+    # Nur lokal erreichbar. Für Zugriff von außen einen Reverse-Proxy mit HTTPS davorsetzen (siehe README).
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      APP_PASSWORD: ${APP_PASSWORD:?Bitte APP_PASSWORD in der Datei .env setzen}
+      FINTS_PRODUCT_ID: ${FINTS_PRODUCT_ID:-}
+      COMDIRECT_CLIENT_ID: ${COMDIRECT_CLIENT_ID:-}
+      COMDIRECT_CLIENT_SECRET: ${COMDIRECT_CLIENT_SECRET:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}   # 1, sobald die App über HTTPS ausgeliefert wird
+    volumes:
+      - ./data:/data

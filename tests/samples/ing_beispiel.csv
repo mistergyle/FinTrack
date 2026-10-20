@@ -1,0 +1,153 @@
+Umsatzanzeige;Datei erstellt am: 18.10.2026 22:10
+;Letztes Update: aktuell
+
+IBAN;DE12 5001 0517 0123 4567 89
+Kontoname;Girokonto
+Bank;ING
+Kunde;Max Mustermann
+Zeitraum;01.04.2026 - 18.10.2026
+Saldo;5.234,56;EUR
+
+Sortierung;Datum absteigend
+In der CSV-Datei finden Sie alle bereits gebuchten Umsätze.
+
+Buchung;Valuta;Auftraggeber/Empfänger;Buchungstext;Verwendungszweck;Saldo;Währung;Betrag;Währung
+18.10.2026;18.10.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;5.234,56;EUR;-64,77;EUR
+15.10.2026;15.10.2026;HUK-COBURG Versicherung;Lastschrift;Kfz-Haftpflicht Quartal;5.299,33;EUR;-148,20;EUR
+14.10.2026;14.10.2026;Restaurant Zum Löwen;Lastschrift;Kartenzahlung;5.447,53;EUR;-47,38;EUR
+14.10.2026;14.10.2026;Geldautomat;Bargeldauszahlung;Bargeldauszahlung;5.494,91;EUR;-50,00;EUR
+12.10.2026;12.10.2026;Netflix International B.V.;Lastschrift;Netflix;5.544,91;EUR;-12,99;EUR
+12.10.2026;12.10.2026;ARAL Tankstelle;Lastschrift;Tanken;5.557,90;EUR;-62,34;EUR
+10.10.2026;10.10.2026;Max Mustermann;Überweisung;Umbuchung comdirect;5.620,24;EUR;-300,00;EUR
+08.10.2026;08.10.2026;Spotify AB;Lastschrift;Spotify Premium;5.920,24;EUR;-10,99;EUR
+07.10.2026;07.10.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;5.931,23;EUR;-25,94;EUR
+06.10.2026;06.10.2026;Rundfunk ARD, ZDF, DRadio;Lastschrift;Rundfunkbeitrag;5.957,17;EUR;-18,36;EUR
+05.10.2026;05.10.2026;Stadtwerke Musterstadt;Lastschrift;Abschlag Strom;5.975,53;EUR;-62,00;EUR
+03.10.2026;03.10.2026;Telekom Deutschland GmbH;Lastschrift;Rechnung Mobilfunk;6.037,53;EUR;-39,95;EUR
+02.10.2026;02.10.2026;Trade Republic Bank GmbH;Dauerauftrag;Sparplan ETF;6.077,48;EUR;-200,00;EUR
+01.10.2026;01.10.2026;Hausverwaltung Müller;Dauerauftrag;Miete Wohnung 2.OG;6.277,48;EUR;-950,00;EUR
+28.09.2026;28.09.2026;Musterfirma GmbH;Gutschrift;Gehalt 09/2026;7.227,48;EUR;2.850,00;EUR
+25.09.2026;25.09.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;4.377,48;EUR;-74,51;EUR
+19.09.2026;19.09.2026;AMAZON PAYMENTS EUROPE;Lastschrift;Bestellung;4.451,99;EUR;-60,37;EUR
+17.09.2026;17.09.2026;ARAL Tankstelle;Lastschrift;Tanken;4.512,36;EUR;-63,49;EUR
+16.09.2026;16.09.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;4.575,85;EUR;-31,52;EUR
+14.09.2026;14.09.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;4.607,37;EUR;-62,17;EUR
+14.09.2026;14.09.2026;Geldautomat;Bargeldauszahlung;Bargeldauszahlung;4.669,54;EUR;-50,00;EUR
+13.09.2026;13.09.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;4.719,54;EUR;-71,23;EUR
+12.09.2026;12.09.2026;Netflix International B.V.;Lastschrift;Netflix;4.790,77;EUR;-12,99;EUR
+12.09.2026;12.09.2026;ARAL Tankstelle;Lastschrift;Tanken;4.803,76;EUR;-62,94;EUR
+10.09.2026;10.09.2026;Max Mustermann;Überweisung;Umbuchung comdirect;4.866,70;EUR;-300,00;EUR
+09.09.2026;09.09.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;5.166,70;EUR;-67,69;EUR
+08.09.2026;08.09.2026;Spotify AB;Lastschrift;Spotify Premium;5.234,39;EUR;-10,99;EUR
+07.09.2026;07.09.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;5.245,38;EUR;-43,53;EUR
+06.09.2026;06.09.2026;Rundfunk ARD, ZDF, DRadio;Lastschrift;Rundfunkbeitrag;5.288,91;EUR;-18,36;EUR
+05.09.2026;05.09.2026;Stadtwerke Musterstadt;Lastschrift;Abschlag Strom;5.307,27;EUR;-62,00;EUR
+04.09.2026;04.09.2026;Pizzeria Roma;Lastschrift;Kartenzahlung;5.369,27;EUR;-21,20;EUR
+03.09.2026;03.09.2026;Telekom Deutschland GmbH;Lastschrift;Rechnung Mobilfunk;5.390,47;EUR;-39,95;EUR
+03.09.2026;03.09.2026;Restaurant Zum Löwen;Lastschrift;Kartenzahlung;5.430,42;EUR;-12,86;EUR
+02.09.2026;02.09.2026;Trade Republic Bank GmbH;Dauerauftrag;Sparplan ETF;5.443,28;EUR;-200,00;EUR
+01.09.2026;01.09.2026;Hausverwaltung Müller;Dauerauftrag;Miete Wohnung 2.OG;5.643,28;EUR;-950,00;EUR
+28.08.2026;28.08.2026;Musterfirma GmbH;Gutschrift;Gehalt 08/2026;6.593,28;EUR;2.850,00;EUR
+27.08.2026;27.08.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;3.743,28;EUR;-59,58;EUR
+20.08.2026;20.08.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;3.802,86;EUR;-30,52;EUR
+18.08.2026;18.08.2026;ARAL Tankstelle;Lastschrift;Tanken;3.833,38;EUR;-66,72;EUR
+17.08.2026;17.08.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;3.900,10;EUR;-59,58;EUR
+16.08.2026;16.08.2026;Pizzeria Roma;Lastschrift;Kartenzahlung;3.959,68;EUR;-16,58;EUR
+15.08.2026;15.08.2026;AMAZON PAYMENTS EUROPE;Lastschrift;Bestellung;3.976,26;EUR;-86,98;EUR
+14.08.2026;14.08.2026;Geldautomat;Bargeldauszahlung;Bargeldauszahlung;4.063,24;EUR;-50,00;EUR
+12.08.2026;12.08.2026;Netflix International B.V.;Lastschrift;Netflix;4.113,24;EUR;-12,99;EUR
+12.08.2026;12.08.2026;ARAL Tankstelle;Lastschrift;Tanken;4.126,23;EUR;-51,61;EUR
+10.08.2026;10.08.2026;Max Mustermann;Überweisung;Umbuchung comdirect;4.177,84;EUR;-300,00;EUR
+08.08.2026;08.08.2026;Spotify AB;Lastschrift;Spotify Premium;4.477,84;EUR;-10,99;EUR
+06.08.2026;06.08.2026;Rundfunk ARD, ZDF, DRadio;Lastschrift;Rundfunkbeitrag;4.488,83;EUR;-18,36;EUR
+05.08.2026;05.08.2026;Stadtwerke Musterstadt;Lastschrift;Abschlag Strom;4.507,19;EUR;-62,00;EUR
+04.08.2026;04.08.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;4.569,19;EUR;-42,44;EUR
+03.08.2026;03.08.2026;Telekom Deutschland GmbH;Lastschrift;Rechnung Mobilfunk;4.611,63;EUR;-39,95;EUR
+02.08.2026;02.08.2026;Trade Republic Bank GmbH;Dauerauftrag;Sparplan ETF;4.651,58;EUR;-200,00;EUR
+01.08.2026;01.08.2026;Hausverwaltung Müller;Dauerauftrag;Miete Wohnung 2.OG;4.851,58;EUR;-950,00;EUR
+01.08.2026;01.08.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;5.801,58;EUR;-39,57;EUR
+01.08.2026;01.08.2026;Starbucks;Lastschrift;Kartenzahlung;5.841,15;EUR;-25,27;EUR
+28.07.2026;28.07.2026;Musterfirma GmbH;Gutschrift;Gehalt 07/2026;5.866,42;EUR;2.850,00;EUR
+24.07.2026;24.07.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;3.016,42;EUR;-53,09;EUR
+20.07.2026;20.07.2026;Restaurant Zum Löwen;Lastschrift;Kartenzahlung;3.069,51;EUR;-33,67;EUR
+19.07.2026;19.07.2026;LIDL Dienstleistung;Lastschrift;Kartenzahlung Einkauf;3.103,18;EUR;-47,65;EUR
+18.07.2026;18.07.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;3.150,83;EUR;-39,52;EUR
+16.07.2026;16.07.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;3.190,35;EUR;-21,85;EUR
+15.07.2026;15.07.2026;HUK-COBURG Versicherung;Lastschrift;Kfz-Haftpflicht Quartal;3.212,20;EUR;-148,20;EUR
+14.07.2026;14.07.2026;ARAL Tankstelle;Lastschrift;Tanken;3.360,40;EUR;-69,42;EUR
+14.07.2026;14.07.2026;AMAZON PAYMENTS EUROPE;Lastschrift;Bestellung;3.429,82;EUR;-60,32;EUR
+14.07.2026;14.07.2026;Geldautomat;Bargeldauszahlung;Bargeldauszahlung;3.490,14;EUR;-50,00;EUR
+12.07.2026;12.07.2026;Netflix International B.V.;Lastschrift;Netflix;3.540,14;EUR;-12,99;EUR
+10.07.2026;10.07.2026;Max Mustermann;Überweisung;Umbuchung comdirect;3.553,13;EUR;-300,00;EUR
+08.07.2026;08.07.2026;Spotify AB;Lastschrift;Spotify Premium;3.853,13;EUR;-10,99;EUR
+08.07.2026;08.07.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;3.864,12;EUR;-59,74;EUR
+06.07.2026;06.07.2026;Rundfunk ARD, ZDF, DRadio;Lastschrift;Rundfunkbeitrag;3.923,86;EUR;-18,36;EUR
+06.07.2026;06.07.2026;ARAL Tankstelle;Lastschrift;Tanken;3.942,22;EUR;-72,87;EUR
+05.07.2026;05.07.2026;Stadtwerke Musterstadt;Lastschrift;Abschlag Strom;4.015,09;EUR;-62,00;EUR
+04.07.2026;04.07.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;4.077,09;EUR;-69,40;EUR
+03.07.2026;03.07.2026;Telekom Deutschland GmbH;Lastschrift;Rechnung Mobilfunk;4.146,49;EUR;-39,95;EUR
+03.07.2026;03.07.2026;Restaurant Zum Löwen;Lastschrift;Kartenzahlung;4.186,44;EUR;-27,63;EUR
+02.07.2026;02.07.2026;Trade Republic Bank GmbH;Dauerauftrag;Sparplan ETF;4.214,07;EUR;-200,00;EUR
+01.07.2026;01.07.2026;Hausverwaltung Müller;Dauerauftrag;Miete Wohnung 2.OG;4.414,07;EUR;-950,00;EUR
+28.06.2026;28.06.2026;Musterfirma GmbH;Gutschrift;Gehalt 06/2026;5.364,07;EUR;2.850,00;EUR
+24.06.2026;24.06.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;2.514,07;EUR;-31,38;EUR
+21.06.2026;21.06.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;2.545,45;EUR;-67,90;EUR
+21.06.2026;21.06.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;2.613,35;EUR;-61,75;EUR
+21.06.2026;21.06.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;2.675,10;EUR;-63,62;EUR
+15.06.2026;15.06.2026;LIDL Dienstleistung;Lastschrift;Kartenzahlung Einkauf;2.738,72;EUR;-40,11;EUR
+14.06.2026;14.06.2026;Geldautomat;Bargeldauszahlung;Bargeldauszahlung;2.778,83;EUR;-50,00;EUR
+12.06.2026;12.06.2026;Netflix International B.V.;Lastschrift;Netflix;2.828,83;EUR;-12,99;EUR
+11.06.2026;11.06.2026;ARAL Tankstelle;Lastschrift;Tanken;2.841,82;EUR;-47,29;EUR
+11.06.2026;11.06.2026;Restaurant Zum Löwen;Lastschrift;Kartenzahlung;2.889,11;EUR;-22,96;EUR
+11.06.2026;11.06.2026;AMAZON PAYMENTS EUROPE;Lastschrift;Bestellung;2.912,07;EUR;-32,28;EUR
+10.06.2026;10.06.2026;Max Mustermann;Überweisung;Umbuchung comdirect;2.944,35;EUR;-300,00;EUR
+09.06.2026;09.06.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;3.244,35;EUR;-73,99;EUR
+08.06.2026;08.06.2026;Spotify AB;Lastschrift;Spotify Premium;3.318,34;EUR;-10,99;EUR
+08.06.2026;08.06.2026;ARAL Tankstelle;Lastschrift;Tanken;3.329,33;EUR;-73,04;EUR
+08.06.2026;08.06.2026;Pizzeria Roma;Lastschrift;Kartenzahlung;3.402,37;EUR;-44,97;EUR
+06.06.2026;06.06.2026;Rundfunk ARD, ZDF, DRadio;Lastschrift;Rundfunkbeitrag;3.447,34;EUR;-18,36;EUR
+05.06.2026;05.06.2026;Stadtwerke Musterstadt;Lastschrift;Abschlag Strom;3.465,70;EUR;-62,00;EUR
+03.06.2026;03.06.2026;Telekom Deutschland GmbH;Lastschrift;Rechnung Mobilfunk;3.527,70;EUR;-39,95;EUR
+02.06.2026;02.06.2026;Trade Republic Bank GmbH;Dauerauftrag;Sparplan ETF;3.567,65;EUR;-200,00;EUR
+01.06.2026;01.06.2026;Hausverwaltung Müller;Dauerauftrag;Miete Wohnung 2.OG;3.767,65;EUR;-950,00;EUR
+28.05.2026;28.05.2026;Musterfirma GmbH;Gutschrift;Gehalt 05/2026;4.717,65;EUR;2.850,00;EUR
+20.05.2026;20.05.2026;Restaurant Zum Löwen;Lastschrift;Kartenzahlung;1.867,65;EUR;-35,64;EUR
+18.05.2026;18.05.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;1.903,29;EUR;-49,00;EUR
+14.05.2026;14.05.2026;Geldautomat;Bargeldauszahlung;Bargeldauszahlung;1.952,29;EUR;-50,00;EUR
+12.05.2026;12.05.2026;Netflix International B.V.;Lastschrift;Netflix;2.002,29;EUR;-12,99;EUR
+12.05.2026;12.05.2026;LIDL Dienstleistung;Lastschrift;Kartenzahlung Einkauf;2.015,28;EUR;-67,45;EUR
+10.05.2026;10.05.2026;Max Mustermann;Überweisung;Umbuchung comdirect;2.082,73;EUR;-300,00;EUR
+10.05.2026;10.05.2026;ARAL Tankstelle;Lastschrift;Tanken;2.382,73;EUR;-70,74;EUR
+10.05.2026;10.05.2026;AMAZON PAYMENTS EUROPE;Lastschrift;Bestellung;2.453,47;EUR;-69,17;EUR
+09.05.2026;09.05.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;2.522,64;EUR;-55,63;EUR
+08.05.2026;08.05.2026;Spotify AB;Lastschrift;Spotify Premium;2.578,27;EUR;-10,99;EUR
+07.05.2026;07.05.2026;Starbucks;Lastschrift;Kartenzahlung;2.589,26;EUR;-14,84;EUR
+06.05.2026;06.05.2026;Rundfunk ARD, ZDF, DRadio;Lastschrift;Rundfunkbeitrag;2.604,10;EUR;-18,36;EUR
+05.05.2026;05.05.2026;Stadtwerke Musterstadt;Lastschrift;Abschlag Strom;2.622,46;EUR;-62,00;EUR
+03.05.2026;03.05.2026;Telekom Deutschland GmbH;Lastschrift;Rechnung Mobilfunk;2.684,46;EUR;-39,95;EUR
+03.05.2026;03.05.2026;LIDL Dienstleistung;Lastschrift;Kartenzahlung Einkauf;2.724,41;EUR;-25,92;EUR
+03.05.2026;03.05.2026;ARAL Tankstelle;Lastschrift;Tanken;2.750,33;EUR;-67,61;EUR
+02.05.2026;02.05.2026;Trade Republic Bank GmbH;Dauerauftrag;Sparplan ETF;2.817,94;EUR;-200,00;EUR
+01.05.2026;01.05.2026;Hausverwaltung Müller;Dauerauftrag;Miete Wohnung 2.OG;3.017,94;EUR;-950,00;EUR
+28.04.2026;28.04.2026;Musterfirma GmbH;Gutschrift;Gehalt 04/2026;3.967,94;EUR;2.850,00;EUR
+24.04.2026;24.04.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;1.117,94;EUR;-73,43;EUR
+24.04.2026;24.04.2026;EDEKA Center;Lastschrift;Kartenzahlung Einkauf;1.191,37;EUR;-25,12;EUR
+21.04.2026;21.04.2026;Starbucks;Lastschrift;Kartenzahlung;1.216,49;EUR;-34,32;EUR
+20.04.2026;20.04.2026;ARAL Tankstelle;Lastschrift;Tanken;1.250,81;EUR;-46,08;EUR
+19.04.2026;19.04.2026;LIDL Dienstleistung;Lastschrift;Kartenzahlung Einkauf;1.296,89;EUR;-20,60;EUR
+18.04.2026;18.04.2026;Pizzeria Roma;Lastschrift;Kartenzahlung;1.317,49;EUR;-41,32;EUR
+16.04.2026;16.04.2026;AMAZON PAYMENTS EUROPE;Lastschrift;Bestellung;1.358,81;EUR;-33,05;EUR
+15.04.2026;15.04.2026;HUK-COBURG Versicherung;Lastschrift;Kfz-Haftpflicht Quartal;1.391,86;EUR;-148,20;EUR
+14.04.2026;14.04.2026;Geldautomat;Bargeldauszahlung;Bargeldauszahlung;1.540,06;EUR;-50,00;EUR
+12.04.2026;12.04.2026;Netflix International B.V.;Lastschrift;Netflix;1.590,06;EUR;-12,99;EUR
+10.04.2026;10.04.2026;Max Mustermann;Überweisung;Umbuchung comdirect;1.603,05;EUR;-300,00;EUR
+08.04.2026;08.04.2026;Spotify AB;Lastschrift;Spotify Premium;1.903,05;EUR;-10,99;EUR
+08.04.2026;08.04.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;1.914,04;EUR;-29,43;EUR
+08.04.2026;08.04.2026;ARAL Tankstelle;Lastschrift;Tanken;1.943,47;EUR;-65,69;EUR
+06.04.2026;06.04.2026;Rundfunk ARD, ZDF, DRadio;Lastschrift;Rundfunkbeitrag;2.009,16;EUR;-18,36;EUR
+05.04.2026;05.04.2026;Stadtwerke Musterstadt;Lastschrift;Abschlag Strom;2.027,52;EUR;-62,00;EUR
+04.04.2026;04.04.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;2.089,52;EUR;-40,53;EUR
+03.04.2026;03.04.2026;Telekom Deutschland GmbH;Lastschrift;Rechnung Mobilfunk;2.130,05;EUR;-39,95;EUR
+02.04.2026;02.04.2026;Trade Republic Bank GmbH;Dauerauftrag;Sparplan ETF;2.170,00;EUR;-200,00;EUR
+01.04.2026;01.04.2026;Hausverwaltung Müller;Dauerauftrag;Miete Wohnung 2.OG;2.370,00;EUR;-950,00;EUR
+01.04.2026;01.04.2026;REWE Markt GmbH;Lastschrift;Kartenzahlung Einkauf;3.320,00;EUR;-35,91;EUR

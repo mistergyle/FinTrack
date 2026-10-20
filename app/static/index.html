@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Finanzübersicht</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div id="login" class="login hidden">
+  <form id="login-form" class="card login-card">
+    <h1>Finanzübersicht</h1>
+    <p class="muted">Selbst gehostet · deine Daten bleiben bei dir.</p>
+    <label>Passwort
+      <input type="password" id="login-pw" autocomplete="current-password" autofocus required>
+    </label>
+    <button class="btn primary" type="submit">Anmelden</button>
+    <p id="login-err" class="err"></p>
+  </form>
+</div>
+
+<div id="app" class="hidden">
+  <header class="top">
+    <div class="brand">Finanzübersicht</div>
+    <nav id="nav">
+      <a href="#/uebersicht" data-r="uebersicht">Übersicht</a>
+      <a href="#/umsaetze" data-r="umsaetze">Umsätze</a>
+      <a href="#/budgets" data-r="budgets">Budgets</a>
+      <a href="#/fixkosten" data-r="fixkosten">Fixkosten</a>
+      <a href="#/konten" data-r="konten">Konten</a>
+      <a href="#/regeln" data-r="regeln">Regeln</a>
+    </nav>
+    <button id="logout" class="btn ghost">Abmelden</button>
+  </header>
+  <main id="view" class="wrap" aria-live="polite"></main>
+</div>
+
+<dialog id="dlg"></dialog>
+<div id="toast" class="toast" role="status"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

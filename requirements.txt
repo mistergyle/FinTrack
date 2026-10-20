@@ -1,0 +1,5 @@
+starlette>=0.37
+uvicorn>=0.30
+python-multipart>=0.0.9
+itsdangerous>=2.1
+fints>=3.1
