@@ -81,8 +81,10 @@ function wireToolbar(rerender) {
 }
 
 // ---------------------------------------------------------------- Diagramme (reines SVG, keine Abhängigkeiten)
+function chartW(max) { const w = ($('#view') || {}).clientWidth || max; return Math.max(280, Math.min(max, w - 40)); }
 function barChart(months, selected) {
-  const W = 720, H = 230, pad = { l: 46, r: 8, t: 10, b: 24 };
+  const W = chartW(720), H = W < 480 ? 200 : 230, pad = { l: 52, r: 8, t: 10, b: 24 };
+  if (W < 480) months = months.slice(-6);
   const max = Math.max(1, ...months.flatMap(m => [m.income_cents, m.expenses_cents]));
   const nice = Math.ceil(max / 100 / 500) * 500 * 100 || 10000;
   const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b, gw = iw / months.length, bw = Math.min(16, gw / 3);
@@ -103,7 +105,7 @@ function barChart(months, selected) {
 }
 
 function lineChart(o) {
-  const W = 520, H = 200, pad = { l: 46, r: 10, t: 10, b: 22 };
+  const W = chartW(520), H = 200, pad = { l: 52, r: 10, t: 10, b: 22 };
   const cum = o.cumulative_cents, n = o.days_in_month;
   const top = Math.max(1, o.total_budget_cents || 0, o.projected_expenses_cents || 0, o.expenses_cents) * 1.08;
   const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b;
@@ -186,7 +188,7 @@ async function viewTransactions(params) {
   };
   v.innerHTML = monthToolbar() + `
     <div class="toolbar">
-      <input type="search" id="f-q" placeholder="Suchen (Empfänger, Verwendungszweck)…" value="${esc(txFilter.q)}" style="min-width:260px">
+      <input type="search" id="f-q" placeholder="Suchen (Empfänger, Verwendungszweck)…" value="${esc(txFilter.q)}" class="grow-in">
       <select id="f-cat"><option value="">Alle Kategorien</option><option value="none" ${txFilter.category_id === 'none' ? 'selected' : ''}>Ohne Kategorie</option>${catOptions(txFilter.category_id)}</select>
       <label style="margin:0;display:flex;gap:.4rem;align-items:center"><input type="checkbox" id="f-all" ${txFilter.all ? 'checked' : ''} style="width:auto;margin:0"> alle Monate</label>
       <span class="spacer"></span><span id="tx-sum" class="muted"></span>
@@ -202,10 +204,10 @@ async function viewTransactions(params) {
     const d = await api('/transactions?' + p);
     $('#tx-sum').textContent = `${d.total} Umsätze · Summe ${eur(d.sum_cents)}`;
     body.insertAdjacentHTML('beforeend', d.transactions.map(t => `<tr data-id="${t.id}">
-      <td>${esc(dateDe(t.booking_date))}</td>
+      <td class="d">${esc(dateDe(t.booking_date))}</td>
       <td class="payee"><div class="p" title="${esc(t.payee)}">${esc(t.payee || t.booking_text || '–')}</div><div class="s" title="${esc(t.purpose)}">${esc(t.purpose)}</div></td>
-      <td class="muted">${esc(t.account_name)}</td>
-      <td><select class="tx-cat" data-id="${t.id}" data-payee="${esc(t.payee || t.booking_text)}">${catOptions(t.category_id)}</select></td>
+      <td class="muted a">${esc(t.account_name)}</td>
+      <td class="c"><select class="tx-cat" data-id="${t.id}" data-payee="${esc(t.payee || t.booking_text)}">${catOptions(t.category_id)}</select></td>
       <td class="num">${sgn(t.amount_cents)}</td></tr>`).join('') || (reset ? '<tr><td colspan="5" class="empty">Keine Umsätze gefunden.</td></tr>' : ''));
     offset += d.transactions.length;
     $('#more').classList.toggle('hidden', offset >= d.total);
@@ -247,11 +249,11 @@ async function viewBudgets() {
     <div class="card"><div class="row" style="margin-bottom:.6rem"><h2 style="margin:0">Monatsbudgets je Kategorie</h2><span class="spacer"></span>
       <button class="btn" id="b-sug" ${sug.suggestions.length ? '' : 'disabled'}>Vorschläge übernehmen (Ø 3 Monate)</button></div>
       <p class="muted" style="margin-top:0">Gesamtbudget: <b>${eur0(o.total_budget_cents)}</b> · ausgegeben: <b>${eur0(o.expenses_cents)}</b></p>
-      <div class="table-wrap"><table><thead><tr><th>Kategorie</th><th class="num">Ø 3 Monate</th><th class="num">${esc(monthName(state.month))}</th><th class="num">Budget / Monat (€)</th><th>Status</th></tr></thead><tbody>
-      ${exp.map(c => { const s = spent[c.id] || {}; const b = c.budget_cents; return `<tr><td><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</td>
-        <td class="num muted">${s.avg3_cents ? eur0(s.avg3_cents) : '–'}</td><td class="num">${eur(s.spent_cents || 0)}</td>
-        <td class="num"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="–" style="width:110px;text-align:right"></td>
-        <td>${s.status && s.status !== 'none' ? `<span class="pill ${s.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten' }[s.status]}</span>` : ''}</td></tr>`; }).join('')}
+      <div class="table-wrap"><table class="stack"><thead><tr><th>Kategorie</th><th class="num">Ø 3 Monate</th><th class="num">${esc(monthName(state.month))}</th><th class="num">Budget / Monat (€)</th><th>Status</th></tr></thead><tbody>
+      ${exp.map(c => { const s = spent[c.id] || {}; const b = c.budget_cents; return `<tr><td class="nm"><span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</td>
+        <td class="num muted" data-l="Ø 3 Monate">${s.avg3_cents ? eur0(s.avg3_cents) : '–'}</td><td class="num" data-l="${esc(monthName(state.month))}">${eur(s.spent_cents || 0)}</td>
+        <td class="num" data-l="Budget (€)"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="–" style="text-align:right"></td>
+        <td class="st">${s.status && s.status !== 'none' ? `<span class="pill ${s.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten' }[s.status]}</span>` : ''}</td></tr>`; }).join('')}
       </tbody></table></div></div>`;
   wireToolbar(viewBudgets);
   $$('.bud', v).forEach(i => i.onchange = async () => {
@@ -286,13 +288,13 @@ async function viewAccounts() {
   const v = $('#view');
   v.innerHTML = `<div class="toolbar"><h1>Konten</h1><span class="spacer"></span><button class="btn primary" id="add-acc">Konto hinzufügen</button></div>
     ${state.fintsEnabled && state.comdirectApi ? '' : `<div class="note"><b>CSV-Import funktioniert sofort.</b> Automatischer Abruf: ${state.comdirectApi ? '' : 'comdirect-API nicht aktiviert (<code>COMDIRECT_CLIENT_ID</code>/<code>COMDIRECT_CLIENT_SECRET</code>). '}${state.fintsEnabled ? '' : 'FinTS nicht aktiviert (<code>FINTS_PRODUCT_ID</code>). '}Siehe README.</div>`}
-    <div class="card">${state.accounts.map(a => `<div class="list-item">
+    <div class="card">${state.accounts.map(a => `<div class="list-item acc">
       <div class="grow"><div class="title">${esc(a.name)} <span class="pill">${esc(a.bank)}</span></div>
       <div class="muted">${esc(a.iban || 'keine IBAN')} · ${a.tx_count} Umsätze · ${a.last_sync ? 'letzter Abruf ' + esc(a.last_sync.replace('T', ' ')) : 'noch kein FinTS-Abruf'}</div></div>
-      <button class="btn small" data-act="csv" data-id="${a.id}">CSV importieren</button>
+      <div class="acts"><button class="btn small" data-act="csv" data-id="${a.id}">CSV importieren</button>
       <button class="btn small" data-act="sync" data-id="${a.id}" ${syncReady(a) ? '' : 'disabled title="Abruf nicht eingerichtet (siehe Hinweis oben)"'}>${a.bank === 'comdirect' && state.comdirectApi ? 'Per comdirect-API abrufen' : 'Per FinTS abrufen'}</button>
       <button class="btn small ghost" data-act="edit" data-id="${a.id}">Bearbeiten</button>
-      <button class="btn small ghost danger" data-act="del" data-id="${a.id}">Löschen</button></div>`).join('') || '<p class="empty">Noch kein Konto angelegt.</p>'}</div>
+      <button class="btn small ghost danger" data-act="del" data-id="${a.id}">Löschen</button></div></div>`).join('') || '<p class="empty">Noch kein Konto angelegt.</p>'}</div>
     <input type="file" id="csv-file" accept=".csv,text/csv" class="hidden">
     <div class="card" style="margin-top:1rem"><h2>So kommst du an deine Umsätze</h2>
       <p><b>ING:</b> Banking → Umsatzanzeige → Export (CSV). &nbsp; <b>comdirect:</b> Umsätze → Download → CSV.<br>Mehrfach-Import überlappender Zeiträume ist unbedenklich, Duplikate werden erkannt.</p></div>`;
@@ -426,7 +428,8 @@ const routes = { uebersicht: viewOverview, umsaetze: viewTransactions, budgets: 
 async function route() {
   const [path, qs] = (location.hash.replace(/^#\/?/, '') || 'uebersicht').split('?');
   const name = routes[path] ? path : 'uebersicht';
-  $$('#nav a').forEach(a => a.classList.toggle('active', a.dataset.r === name));
+  $$('#nav a').forEach(a => { const on = a.dataset.r === name; a.classList.toggle('active', on); if (on) $('#page-title').textContent = a.textContent.replace(/^\S\s?/, ''); });
+  setMenu(false);
   try {
     if (!state.cats.length) await loadMeta();
     await routes[name](new URLSearchParams(qs || ''));
@@ -443,10 +446,25 @@ $('#login-form').onsubmit = async e => {
   try { await api('/login', { json: { password: $('#login-pw').value } }); $('#login-pw').value = ''; $('#login-err').textContent = ''; showApp(); }
   catch (err) { $('#login-err').textContent = err.message; }
 };
-$('#logout').onclick = async () => { await api('/logout', { json: {} }); state.cats = []; showLogin(); };
+const doLogout = async () => { await api('/logout', { json: {} }); state.cats = []; setMenu(false); showLogin(); };
+$('#logout').onclick = doLogout; $('#logout2').onclick = doLogout;
+
+// Burger-Menü (mobil: Schublade von links)
+function setMenu(open) {
+  document.body.classList.toggle('menu-open', open);
+  $('#burger').setAttribute('aria-expanded', String(open));
+  $('#burger').setAttribute('aria-label', open ? 'Menü schließen' : 'Menü öffnen');
+}
+$('#burger').onclick = () => setMenu(!document.body.classList.contains('menu-open'));
+$('#scrim').onclick = () => setMenu(false);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') setMenu(false); });
+let lastNarrow = innerWidth < 640, rz;
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => {
+  const n = innerWidth < 640; if (n !== lastNarrow) { lastNarrow = n; setMenu(false); if (!$('#app').classList.contains('hidden') && !document.querySelector('dialog[open]')) route(); }
+}, 200); });
 window.addEventListener('hashchange', route);
 (async () => {
   const s = await fetch('api/session').then(r => r.json());
-  if (s.ingress) $('#logout').classList.add('hidden');   // Anmeldung übernimmt Home Assistant
+  if (s.ingress) { $('#logout').classList.add('hidden'); $('#logout2').classList.add('hidden'); }   // Anmeldung übernimmt Home Assistant
   s.authenticated ? showApp() : showLogin();
 })();

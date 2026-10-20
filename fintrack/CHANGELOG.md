@@ -1,3 +1,7 @@
+## 0.3.0
+
+- Mobile-optimierte Oberfläche: Burger-Menü (Schublade), Umsätze und Budgets als Karten, Bottom-Sheet-Dialoge, größere Touch-Flächen, schmale Diagramme.
+
 # Changelog
 
 ## 0.2.0
