@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.1
+
+- Behoben: Umsätze, die erst per FinTS abgerufen und danach per CSV importiert wurden (oder umgekehrt), erschienen doppelt, weil die Texte unterschiedlich getrennt sind. CSV-Importe gleichen jetzt wie der FinTS-/API-Abruf mit vorhandenen Umsätzen ab (gleiches Datum und Betrag, ähnlicher Text).
+- Neu: Konten → „Duplikate bereinigen“ entfernt bereits vorhandene Dubletten. Identische Käufe aus derselben Quelle (z. B. zwei gleiche Käufe am selben Tag) bleiben erhalten.
+
 ## 0.6.0
 
 - Übersicht: Sankey-Diagramm „Wohin fließen die Einnahmen?“ (Einnahmequellen → Einnahmen → Ausgabenkategorien, Sparen, Übrig). Antippen einer Kategorie öffnet die zugehörigen Umsätze. Funktioniert für Monat und Jahr, auch mobil.

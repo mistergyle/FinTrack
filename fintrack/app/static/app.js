@@ -381,7 +381,7 @@ const syncAvailable = a => (a.bank === 'comdirect' && state.comdirectApi) || sta
 async function viewAccounts() {
   await loadMeta();
   const v = $('#view');
-  v.innerHTML = `<div class="toolbar"><h1>Konten</h1><span class="spacer"></span><button class="btn primary" id="add-acc">Konto hinzufügen</button></div>
+  v.innerHTML = `<div class="toolbar"><h1>Konten</h1><span class="spacer"></span><button class="btn" id="dedupe" title="Entfernt doppelte Umsätze, die durch FinTS- plus CSV-Import entstanden sind">Duplikate bereinigen</button><button class="btn primary" id="add-acc">Konto hinzufügen</button></div>
     ${state.fintsEnabled && state.comdirectApi ? '' : `<div class="note"><b>CSV-Import funktioniert sofort.</b> Automatischer Abruf: ${state.comdirectApi ? '' : 'comdirect-API nicht aktiviert (<code>COMDIRECT_CLIENT_ID</code>/<code>COMDIRECT_CLIENT_SECRET</code>). '}${state.fintsEnabled ? '' : 'FinTS nicht aktiviert (<code>FINTS_PRODUCT_ID</code>). '}Siehe README.</div>`}
     <div class="card">${state.accounts.map(a => `<div class="list-item acc">
       <div class="grow"><div class="title">${esc(a.name)} <span class="pill">${esc(a.bank)}</span></div>
@@ -394,6 +394,10 @@ async function viewAccounts() {
     <div class="card" style="margin-top:1rem"><h2>So kommst du an deine Umsätze</h2>
       <p><b>ING:</b> Banking → Umsatzanzeige → Export (CSV). &nbsp; <b>comdirect:</b> Umsätze → Download → CSV.<br>Mehrfach-Import überlappender Zeiträume ist unbedenklich, Duplikate werden erkannt.</p></div>`;
   $('#add-acc').onclick = () => accountDialog();
+  $('#dedupe').onclick = async () => {
+    if (!confirm('Doppelte Umsätze entfernen, die durch FinTS- plus CSV-Import (leicht abweichender Text) entstanden sind? Identische Buchungen aus derselben Quelle, etwa zwei gleiche Käufe am selben Tag, bleiben erhalten.')) return;
+    try { const x = await api('/dedupe', { json: {} }); await loadMeta(); toast(x.removed ? `${x.removed} Duplikate entfernt` : 'Keine Duplikate gefunden'); viewAccounts(); } catch (e) { toast(e.message, true); }
+  };
   let csvFor = null;
   const fi = $('#csv-file');
   v.onclick = e => {

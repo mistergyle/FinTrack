@@ -138,6 +138,68 @@ class StoreAndCategorizeTests(unittest.TestCase):
         self.assertTrue(all(t["category"] == "Bildung" for t in others))
 
 
+class DuplicateTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        os.environ["FINANZ_DB"] = os.path.join(self.tmp, "t.db")
+        init_db()
+        from app.importers import ParsedTx
+        self.P = ParsedTx
+        with session() as conn:
+            conn.execute("INSERT INTO accounts(name,bank,created_at) VALUES('A','ing','x')")
+            self.acc = conn.execute("SELECT id FROM accounts").fetchone()[0]
+
+    def fints(self, d="2026-10-19", a=-920):
+        return self.P(d, d, "VISA HINNERBAECKER GMBH & C", "NR XXXX 7028 BAD HOMBURG DEKAUFUMSATZ15.10 9.20065206ARN7", "Lastschrift", a)
+
+    def csv(self, d="2026-10-19", a=-920):
+        return self.P(d, d, "VISA HINNERBAECKER GMBH & C", "NR XXXX 7028 BAD HOMBURG DE KAUFUMSATZ 15.10 9.20 065206 ARN7", "Lastschrift", a)
+
+    def count(self, conn):
+        return conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
+
+    def test_csv_after_fints_is_not_duplicated(self):
+        with session() as conn:
+            store_transactions(conn, self.acc, [self.fints()], fuzzy=True)
+            r = store_transactions(conn, self.acc, [self.csv()], fuzzy=True)
+            self.assertEqual((r["added"], self.count(conn)), (0, 1))
+            r = store_transactions(conn, self.acc, [self.csv()], fuzzy=True)      # erneuter Import bleibt idempotent
+            self.assertEqual(self.count(conn), 1)
+
+    def test_different_booking_same_amount_is_kept(self):
+        other = self.P("2026-10-19", "2026-10-19", "LIDL SAGT DANKE", "Kartenzahlung Einkauf", "Lastschrift", -920)
+        with session() as conn:
+            store_transactions(conn, self.acc, [self.fints()], fuzzy=True)
+            store_transactions(conn, self.acc, [other], fuzzy=True)
+            self.assertEqual(self.count(conn), 2)
+
+    def test_generic_words_do_not_match(self):
+        a = self.P("2026-10-19", "2026-10-19", "VISA THAI ME UP", "NR XXXX 7028 KAUFUMSATZ 17.10 9.20", "Lastschrift", -920)
+        with session() as conn:
+            store_transactions(conn, self.acc, [self.fints()], fuzzy=True)
+            store_transactions(conn, self.acc, [a], fuzzy=True)
+            self.assertEqual(self.count(conn), 2)
+
+    def test_two_identical_purchases_survive_cross_source(self):
+        with session() as conn:
+            store_transactions(conn, self.acc, [self.fints(), self.fints()], fuzzy=True)
+            store_transactions(conn, self.acc, [self.csv(), self.csv()], fuzzy=True)
+            self.assertEqual(self.count(conn), 2)
+
+    def test_remove_existing_duplicates(self):
+        from app.importers import remove_duplicates
+        other = self.P("2026-10-19", "2026-10-19", "LIDL SAGT DANKE", "Kartenzahlung", "Lastschrift", -920)
+        with session() as conn:
+            store_transactions(conn, self.acc, [self.fints(), other])                  # beide ohne Abgleich gespeichert
+            store_transactions(conn, self.acc, [self.csv()])
+            twin = self.P("2026-10-20", "2026-10-20", "Kaffee", "Cappuccino", "Lastschrift", -350)
+            store_transactions(conn, self.acc, [twin, twin])                           # echte Doppelkäufe derselben Quelle
+            self.assertEqual(self.count(conn), 5)
+            self.assertEqual(remove_duplicates(conn), 1)
+            self.assertEqual(self.count(conn), 4)
+            self.assertEqual(remove_duplicates(conn), 0)
+
+
 class SubcategoryTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.mkdtemp()

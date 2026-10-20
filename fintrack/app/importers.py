@@ -206,6 +206,74 @@ def tx_hash(account_id: int, t: ParsedTx, n: int) -> str:
     return hashlib.sha1(key.encode()).hexdigest()
 
 
+SAME_BOOKING = 0.7      # Ähnlichkeit ab der zwei Buchungen (gleiches Datum, gleicher Betrag) als dieselbe gelten
+
+
+_GENERIC = {"visa", "gmbh", "mastercard", "girocard", "sepa", "kartenzahlung", "lastschrift", "ueberweisung",
+            "überweisung", "einkauf", "bank", "shop", "store", "markt", "berlin", "hamburg", "muenchen", "münchen"}
+
+
+def _norm(*parts: str) -> str:
+    return re.sub(r"[^a-z0-9äöüß]", "", " ".join(parts).lower())
+
+
+def similarity(payee_a: str, purpose_a: str, payee_b: str, purpose_b: str) -> float:
+    """0..1 – Vergleich ohne Leerzeichen/Satzzeichen, denn FinTS und CSV trennen Zeilen unterschiedlich."""
+    from difflib import SequenceMatcher
+    pa, pb = _norm(payee_a), _norm(payee_b)
+    a, b = _norm(payee_a, purpose_a)[:160], _norm(payee_b, purpose_b)[:160]
+    if not a or not b:
+        return 0.0
+    r = SequenceMatcher(None, a, b, autojunk=False).ratio()
+    if pa and pb and (pa == pb or pa.startswith(pb) or pb.startswith(pa)):
+        r = max(r, 0.5 + 0.5 * min(1.0, SequenceMatcher(None, _norm(purpose_a)[:120], _norm(purpose_b)[:120]).ratio() + 0.3))
+    ta = {w for w in re.findall(r"[a-z0-9äöüß]{4,}", payee_a.lower())} - _GENERIC
+    tb = {w for w in re.findall(r"[a-z0-9äöüß]{4,}", payee_b.lower())} - _GENERIC
+    if ta & tb:                                   # gemeinsamer Namensbestandteil, z. B. „netflix“
+        r = max(r, SAME_BOOKING)
+    return r
+
+
+def remove_duplicates(conn: sqlite3.Connection) -> int:
+    """Entfernt Dubletten, die durch Mischen von FinTS/API und CSV entstanden sind.
+
+    Gleiche Buchungen aus derselben Quelle (identischer Rohtext, z. B. zwei Kaffee am selben Tag)
+    bleiben erhalten; nur Zeilen mit *abweichendem* Text, aber hoher Ähnlichkeit gelten als Dublette."""
+    rows = conn.execute("SELECT id,account_id,booking_date,amount_cents,payee,purpose,booking_text,category_source "
+                        "FROM transactions ORDER BY id").fetchall()
+    groups: dict[tuple, list] = {}
+    for r in rows:
+        groups.setdefault((r["account_id"], r["booking_date"], r["amount_cents"]), []).append(r)
+    drop: list[int] = []
+    for grp in groups.values():
+        if len(grp) < 2:
+            continue
+        classes: dict[tuple, list] = {}
+        for r in grp:
+            classes.setdefault((r["payee"].lower(), r["purpose"].lower(), r["booking_text"].lower()), []).append(r)
+        keys = list(classes)
+        gone: set[tuple] = set()
+        for i, ka in enumerate(keys):
+            for kb in keys[i + 1:]:
+                if ka in gone or kb in gone:
+                    continue
+                A, B = classes[ka], classes[kb]
+                if similarity(A[0]["payee"], A[0]["purpose"], B[0]["payee"], B[0]["purpose"]) < SAME_BOOKING:
+                    continue
+                keep, kill = (A, B) if not any(x["category_source"] == "manual" for x in B) or any(
+                    x["category_source"] == "manual" for x in A) else (B, A)
+                n = min(len(A), len(B))
+                victims = sorted(kill, key=lambda x: -x["id"])[:n]
+                drop += [v["id"] for v in victims]
+                if n == len(kill):
+                    gone.add(ka if kill is A else kb)
+                else:
+                    classes[ka if kill is A else kb] = [x for x in kill if x not in victims]
+    for i in drop:
+        conn.execute("DELETE FROM transactions WHERE id=?", (i,))
+    return len(drop)
+
+
 def store_transactions(conn: sqlite3.Connection, account_id: int,
                        txs: list[ParsedTx], fuzzy: bool = False) -> dict:
     """Speichert Umsätze, überspringt Duplikate, kategorisiert neue Umsätze.
@@ -228,16 +296,22 @@ def store_transactions(conn: sqlite3.Connection, account_id: int,
 
     skip: set[str] = set()
     if fuzzy:
-        groups: dict[tuple, list[str]] = {}
+        groups: dict[tuple, list[tuple[ParsedTx, str]]] = {}
         for t, h in items:
-            groups.setdefault((t.booking_date, t.amount_cents), []).append(h)
-        for (d, a), hs in groups.items():
-            existing = {r["hash"] for r in conn.execute(
-                "SELECT hash FROM transactions WHERE account_id=? AND booking_date=? AND amount_cents=?",
-                (account_id, d, a))}
-            new_in = [h for h in hs if h not in existing]
-            unmatched_existing = len(existing) - (len(hs) - len(new_in))
-            skip.update(new_in[:max(0, min(len(new_in), unmatched_existing))])
+            groups.setdefault((t.booking_date, t.amount_cents), []).append((t, h))
+        for (d, a), grp in groups.items():
+            existing = {r["hash"]: r for r in conn.execute(
+                "SELECT hash,payee,purpose,booking_text FROM transactions "
+                "WHERE account_id=? AND booking_date=? AND amount_cents=?", (account_id, d, a))}
+            used = {h for _, h in grp if h in existing}            # exakte Treffer verbrauchen ihren Bestand
+            pool = [r for h, r in existing.items() if h not in used]
+            for t, h in grp:
+                if h in existing or not pool:
+                    continue
+                best = max(pool, key=lambda r: similarity(t.payee, t.purpose, r["payee"], r["purpose"]))
+                if similarity(t.payee, t.purpose, best["payee"], best["purpose"]) >= SAME_BOOKING:
+                    pool.remove(best)
+                    skip.add(h)
 
     added = skipped = 0
     for t, h in items:

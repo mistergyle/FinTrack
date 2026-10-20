@@ -20,7 +20,7 @@ from starlette.staticfiles import StaticFiles
 from . import analysis, category_tree, comdirect_api, comdirect_sync, fints_sync
 from .categorizer import apply_rules
 from .db import get_setting, init_db, now_iso, session, set_setting
-from .importers import ImportError_, find_account_by_iban, parse_csv, store_transactions
+from .importers import ImportError_, find_account_by_iban, parse_csv, remove_duplicates, store_transactions
 
 STATIC = os.path.join(os.path.dirname(__file__), "static")
 COOKIE = "finanz_session"
@@ -235,7 +235,7 @@ async def import_csv(request: Request):
             if pf.holder.lower() not in (n.lower() for n in names):
                 set_setting(conn, "own_names", ", ".join(names + [pf.holder]))
                 name_added = pf.holder
-        stats = store_transactions(conn, aid, pf.transactions)
+        stats = store_transactions(conn, aid, pf.transactions, fuzzy=True)   # auch gegen FinTS-Umsätze abgleichen
         if name_added:
             apply_rules(conn)
         return JSONResponse({**stats, "bank": pf.bank, "account_id": aid, "parsed": len(pf.transactions),
@@ -261,6 +261,12 @@ async def sync_start(request: Request):
     except ValueError as e:
         return err(str(e))
     return JSONResponse(job.public(), status_code=202)
+
+
+async def dedupe(request: Request):
+    with session() as conn:
+        n = remove_duplicates(conn)
+    return JSONResponse({"removed": n})
 
 
 async def sync_status(request: Request):
@@ -561,6 +567,7 @@ routes = [
     Route("/api/accounts/{id:int}", delete_account, methods=["DELETE"]),
     Route("/api/import", import_csv, methods=["POST"]),
     Route("/api/accounts/{id:int}/sync", sync_start, methods=["POST"]),
+    Route("/api/dedupe", dedupe, methods=["POST"]),
     Route("/api/sync/{job}", sync_status),
     Route("/api/sync/{job}/tan", sync_tan, methods=["POST"]),
     Route("/api/transactions", list_transactions),
