@@ -281,7 +281,7 @@ async function viewRecurring() {
     <p class="muted">Erkennung automatisch: gleicher Empfänger, ähnlicher Betrag (±15 %), regelmäßiger Abstand.</p>`;
 }
 
-const syncReady = a => !!a.fints_user && ((a.bank === 'comdirect' && state.comdirectApi) || state.fintsEnabled);
+const syncAvailable = a => (a.bank === 'comdirect' && state.comdirectApi) || state.fintsEnabled;
 
 async function viewAccounts() {
   await loadMeta();
@@ -292,7 +292,7 @@ async function viewAccounts() {
       <div class="grow"><div class="title">${esc(a.name)} <span class="pill">${esc(a.bank)}</span></div>
       <div class="muted">${esc(a.iban || 'keine IBAN')} · ${a.tx_count} Umsätze · ${a.last_sync ? 'letzter Abruf ' + esc(a.last_sync.replace('T', ' ')) : 'noch kein FinTS-Abruf'}</div></div>
       <div class="acts"><button class="btn small" data-act="csv" data-id="${a.id}">CSV importieren</button>
-      <button class="btn small" data-act="sync" data-id="${a.id}" ${syncReady(a) ? '' : 'disabled title="Abruf nicht eingerichtet (siehe Hinweis oben)"'}>${a.bank === 'comdirect' && state.comdirectApi ? 'Per comdirect-API abrufen' : 'Per FinTS abrufen'}</button>
+      <button class="btn small" data-act="sync" data-id="${a.id}">${a.bank === 'comdirect' && state.comdirectApi ? 'Per comdirect-API abrufen' : 'Per FinTS abrufen'}</button>
       <button class="btn small ghost" data-act="edit" data-id="${a.id}">Bearbeiten</button>
       <button class="btn small ghost danger" data-act="del" data-id="${a.id}">Löschen</button></div></div>`).join('') || '<p class="empty">Noch kein Konto angelegt.</p>'}</div>
     <input type="file" id="csv-file" accept=".csv,text/csv" class="hidden">
@@ -305,7 +305,11 @@ async function viewAccounts() {
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const a = state.accounts.find(x => String(x.id) === b.dataset.id);
     if (b.dataset.act === 'csv') { csvFor = a.id; fi.value = ''; fi.click(); }
-    if (b.dataset.act === 'sync') syncDialog(a);
+    if (b.dataset.act === 'sync') {
+      if (!syncAvailable(a)) return toast('Automatischer Abruf ist für dieses Konto nicht aktiviert (siehe Hinweis oben).', true);
+      if (!a.fints_user) { toast('Bitte zuerst die Zugangsnummer / den Login-Namen eintragen.', true); return accountDialog(a); }
+      syncDialog(a);
+    }
     if (b.dataset.act === 'edit') accountDialog(a);
     if (b.dataset.act === 'del' && confirm(`Konto „${a.name}“ mit allen ${a.tx_count} Umsätzen löschen?`)) api(`/accounts/${a.id}`, { method: 'DELETE' }).then(viewAccounts);
   };
