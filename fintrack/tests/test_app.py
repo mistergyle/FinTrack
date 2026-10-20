@@ -105,6 +105,20 @@ class StoreAndCategorizeTests(unittest.TestCase):
             r = conn.execute("SELECT c.kind FROM transactions t JOIN categories c ON c.id=t.category_id WHERE t.payee LIKE 'Finanzamt%'").fetchone()
             self.assertEqual(r[0], "income")
 
+    def test_nahkauf_and_baecker(self):
+        with session() as conn:
+            cz = Categorizer(conn)
+            name = lambda i: conn.execute("SELECT name FROM categories WHERE id=?", (i,)).fetchone()[0]
+            for payee in ("NAHKAUF Bad Homburg", "VISA HINNERBAECKER GMBH & C", "Bäcker Müller", "Landbaecker"):
+                self.assertEqual(name(cz.categorize(payee, "", "", -500)), "Lebensmittel / Getränke", payee)
+
+    def test_extra_rules_reach_existing_database(self):
+        from app.categorizer import add_extra_rules
+        with session() as conn:
+            conn.execute("DELETE FROM rules WHERE pattern IN ('nahkauf','re:b(ä|ae)cker')")
+            self.assertEqual(add_extra_rules(conn), 2)
+            self.assertEqual(add_extra_rules(conn), 0)                            # idempotent
+
     def test_word_boundaries(self):
         with session() as conn:
             cz = Categorizer(conn)

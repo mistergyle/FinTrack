@@ -100,7 +100,7 @@ def session():
 
 
 def init_db() -> None:
-    from .categorizer import seed_defaults
+    from .categorizer import add_extra_rules, seed_defaults
 
     with session() as conn:
         conn.executescript(SCHEMA)
@@ -108,6 +108,7 @@ def init_db() -> None:
         if "parent_id" not in cols:   # Migration älterer Datenbanken
             conn.execute("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL")
         seed_defaults(conn)
+        add_extra_rules(conn)
         if get_setting(conn, "migr_retire_sonstige", "") != "1":     # einmalig
             from .category_tree import retire_category
             retire_category(conn)

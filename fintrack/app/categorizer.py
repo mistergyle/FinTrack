@@ -113,6 +113,34 @@ DEFAULT_RULES = [
 ]
 
 
+# Nachträglich ergänzte Standardregeln (werden auch in bestehende Datenbanken eingetragen).
+# (Kategoriename, Richtung, [Muster]) – Kategorie wird auch unter ihrem alten Namen gefunden.
+EXTRA_RULES = [
+    ("Lebensmittel / Getränke", "out", ["nahkauf", "re:b(ä|ae)cker"]),   # inkl. „Hinnerbaecker“, „Bäcker Müller“
+]
+_ALT_NAMES = {"Lebensmittel / Getränke": "Lebensmittel"}
+
+
+def add_extra_rules(conn: sqlite3.Connection) -> int:
+    """Trägt fehlende EXTRA_RULES ein und kategorisiert danach neu. Rückgabe: Anzahl neuer Regeln."""
+    added = 0
+    ts = now_iso()
+    for cat, direction, patterns in EXTRA_RULES:
+        row = conn.execute("SELECT id FROM categories WHERE name=?", (cat,)).fetchone() or \
+              conn.execute("SELECT id FROM categories WHERE name=?", (_ALT_NAMES.get(cat, cat),)).fetchone()
+        if not row:
+            continue
+        for p in patterns:
+            if conn.execute("SELECT 1 FROM rules WHERE source='default' AND pattern=?", (p,)).fetchone():
+                continue
+            conn.execute("INSERT INTO rules(category_id,pattern,direction,priority,source,created_at) VALUES(?,?,?,0,'default',?)",
+                         (row["id"], p, direction, ts))
+            added += 1
+    if added:
+        apply_rules(conn)
+    return added
+
+
 def seed_defaults(conn: sqlite3.Connection) -> None:
     fresh = conn.execute("SELECT COUNT(*) FROM categories").fetchone()[0] == 0
     if fresh:

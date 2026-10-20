@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- Automatische Kategorisierung: „Nahkauf“ und „Bäcker/Baecker“ (auch mitten im Namen, z. B. „Hinnerbaecker“) landen in „Lebensmittel / Getränke“. Die Regeln werden beim Start auch in bestehende Datenbanken eingetragen, vorhandene Umsätze (ohne manuell gesetzte Kategorie) werden neu kategorisiert.
+
 ## 0.7.0
 
 - Umsätze: „Gefilterte löschen“ löscht alle Umsätze, die zu Monat/Jahr, Konto, Kategorie und Suche passen. Vorher Bestätigung mit Anzahl und Summe; ohne Filter muss „LÖSCHEN“ getippt werden.
