@@ -697,6 +697,18 @@ class AddonConfigTests(unittest.TestCase):
             self.assertIn(n, mapping, f"{n} fehlt in der Zuordnung")
             self.assertIn(mapping[n], self.cfg["options"], f"{n} ist keine Add-on-Option")
 
+    def test_store_images(self):
+        """Home Assistant zeigt icon.png (quadratisch) und logo.png im Add-on-Store."""
+        import struct
+        for name in ("icon.png", "logo.png"):
+            with open(os.path.join(ADDON_DIR, name), "rb") as f:
+                head = f.read(24)
+            self.assertEqual(head[:8], b"\x89PNG\r\n\x1a\n", name)
+            w, h = struct.unpack(">II", head[16:24])
+            if name == "icon.png":
+                self.assertEqual(w, h)
+            self.assertGreater(w, 0)
+
     def test_ui_uses_relative_paths(self):
         """Hinter Ingress liegt die App unter /api/hassio_ingress/<token>/ – absolute Pfade würden brechen."""
         html = open(os.path.join(ADDON_DIR, "app", "static", "index.html")).read()
