@@ -93,10 +93,10 @@ function periodPicker(withYear, rerender) {
   const draw = () => {
     const sel = state.month, yrSel = isYear(sel) && Number(sel) === y;
     const mnames = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString('de-DE', { month: 'short' }).replace('.', ''));
-    const d = openDialog(`<div class="pp"><div class="pp-year"><button type="button" class="btn" id="pp-py" aria-label="Vorjahr">‹</button><b id="pp-y">${y}</b><button type="button" class="btn" id="pp-ny" aria-label="Nächstes Jahr">›</button></div>
+    const d = openDialog(`<div class="pp"><div class="pp-year"><button type="button" class="btn" id="pp-py" aria-label="Vorjahr">‹</button>${withYear ? `<button type="button" class="pp-yearbtn ${yrSel ? 'on' : ''}" data-ym="${y}" aria-pressed="${yrSel}" title="Ganzes Jahr ${y} auswählen">${y}</button>` : `<b id="pp-y">${y}</b>`}<button type="button" class="btn" id="pp-ny" aria-label="Nächstes Jahr">›</button></div>
       <div class="pp-grid" role="group" aria-label="Monat in ${y}">${mnames.map((n, i) => { const ym = `${y}-${String(i + 1).padStart(2, '0')}`;
         return `<button type="button" class="pp-m ${sel === ym ? 'on' : ''} ${ym === now ? 'cur' : ''}" data-ym="${ym}" aria-pressed="${sel === ym}">${n}</button>`; }).join('')}</div>
-      ${withYear ? `<button type="button" class="btn pp-all ${yrSel ? 'on' : ''}" data-ym="${y}" aria-pressed="${yrSel}">Ganzes Jahr ${y}</button>` : ''}
+      ${withYear ? '<p class="muted pp-hint">Jahreszahl antippen = ganzes Jahr</p>' : ''}
       <div class="actions"><button type="button" class="btn ghost" id="pp-now">Heute</button><button type="button" class="btn" id="pp-close">Schließen</button></div></div>`);
     $('#pp-py', d).onclick = () => { y--; draw(); };
     $('#pp-ny', d).onclick = () => { y++; draw(); };

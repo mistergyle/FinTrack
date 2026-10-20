@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- Datepicker: Die Jahreszahl in der Überschrift ist antippbar und wählt das ganze Jahr (statt Button „Ganzes Jahr“).
+
 ## 0.8.0
 
 - Umsätze sortieren: Klick auf die Spaltenüberschriften „Datum“ und „Betrag“ (auf dem Handy per Auswahlfeld).

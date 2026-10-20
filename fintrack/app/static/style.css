@@ -259,3 +259,7 @@ th.num .th-sort { flex-direction: row-reverse; }
 .pp-all { width: 100%; margin-top: .6rem; }
 @media (max-width: 640px) { .sort-mobile { display: block; flex: 1 1 100%; } .picker { font-size: 1.05rem; flex: 1; justify-content: center; } }
 .picker span { white-space: nowrap; } @media (max-width: 640px) { .picker { font-size: 1rem; gap: .3rem; padding-left: .4rem; padding-right: .4rem; min-width: 0; } }
+.pp-yearbtn { font: inherit; font-size: 1.2rem; font-weight: 700; padding: .35rem .9rem; min-height: 44px; border: 1px solid transparent; border-bottom: 2px dashed var(--line); background: transparent; color: var(--ink); border-radius: 10px; cursor: pointer; }
+.pp-yearbtn:hover { background: var(--bar); }
+.pp-yearbtn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pp-hint { text-align: center; font-size: .8rem; margin: .7rem 0 0; }
