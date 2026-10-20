@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1
+
+- Behoben: Der Button „Per comdirect-API abrufen“ reagierte nicht, wenn beim Konto die Zugangsnummer fehlte. Jetzt erscheint ein Hinweis und der Konto-Dialog öffnet sich.
+- Der comdirect-Abruf schreibt Fortschritt und Fehler ins Add-on-Protokoll.
+
 ## 0.3.0
 
 - Mobile-optimierte Oberfläche: Burger-Menü (Schublade), Umsätze und Budgets als Karten, Bottom-Sheet-Dialoge, größere Touch-Flächen, schmale Diagramme.
