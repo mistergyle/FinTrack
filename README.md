@@ -74,3 +74,6 @@ Beispieldateien (erfundene Daten) liegen in `fintrack/tests/samples/`.
 
 ## Aufbau
 `fintrack/app/` – `main.py` (API), `importers.py` (CSV), `categorizer.py` (Regeln), `analysis.py` (Budgets/Fixkosten), `fints_sync.py` (FinTS), `static/` (Oberfläche ohne externe Abhängigkeiten).
+
+## Lizenz
+[MIT](LICENSE). Die Software wird ohne Gewähr bereitgestellt – das gilt besonders für die nur gegen Attrappen getesteten Bankanbindungen (FinTS, comdirect-API).
