@@ -43,10 +43,19 @@ def _secret_key() -> str:
 
 
 def _password() -> str:
-    pw = os.environ.get("APP_PASSWORD")
-    if not pw:
-        raise RuntimeError("APP_PASSWORD ist nicht gesetzt. Ohne Passwort startet die App aus Sicherheitsgründen nicht.")
-    return pw
+    return os.environ.get("APP_PASSWORD", "")
+
+
+def _trust_ingress() -> bool:
+    """Im Home-Assistant-Add-on (TRUST_INGRESS=1) authentifiziert HA den Nutzer bereits."""
+    return os.environ.get("TRUST_INGRESS", "0") == "1"
+
+
+def _via_ingress(request: Request) -> bool:
+    """Ingress-Anfragen kommen ausschließlich vom HA-Supervisor (172.30.32.2).
+    Direkte Zugriffe (z. B. über einen freigegebenen Port) zählen nicht dazu."""
+    ingress_ip = os.environ.get("INGRESS_IP", "172.30.32.2")
+    return _trust_ingress() and request.client is not None and request.client.host == ingress_ip
 
 
 _failed: dict[str, list[float]] = {}
@@ -57,8 +66,10 @@ def _serializer() -> URLSafeTimedSerializer:
 
 
 def _authed(request: Request) -> bool:
+    if _via_ingress(request):
+        return True
     tok = request.cookies.get(COOKIE)
-    if not tok:
+    if not tok or not _password():
         return False
     try:
         _serializer().loads(tok, max_age=SESSION_MAX_AGE)
@@ -76,10 +87,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
             return JSONResponse({"error": "Nicht angemeldet"}, status_code=401)
         resp = await call_next(request)
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
-        resp.headers.setdefault("X-Frame-Options", "DENY")
+        # SAMEORIGIN statt DENY: Home Assistant bettet das Add-on per Ingress als iframe (gleiche Origin) ein.
+        resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         resp.headers.setdefault("Referrer-Policy", "no-referrer")
         resp.headers.setdefault("Content-Security-Policy",
-                                "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:")
+                                "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'self'")
         resp.headers.setdefault("Cache-Control", "no-store")
         return resp
 
@@ -99,6 +111,9 @@ async def body(request: Request) -> dict:
 # ------------------------------------------------------------------ Auth
 
 async def login(request: Request):
+    if not _password():
+        return err("Direktzugriff ist deaktiviert, weil kein Passwort gesetzt ist. Öffne die App über die "
+                   "Home-Assistant-Seitenleiste oder setze in der Add-on-Konfiguration ein Passwort.", 403)
     ip = request.client.host if request.client else "?"
     now = time.time()
     attempts = [t for t in _failed.get(ip, []) if now - t < 600]
@@ -123,7 +138,8 @@ async def logout(request: Request):
 
 
 async def session_info(request: Request):
-    return JSONResponse({"authenticated": _authed(request)})
+    return JSONResponse({"authenticated": _authed(request), "ingress": _via_ingress(request),
+                         "login_available": bool(_password())})
 
 
 # ------------------------------------------------------------------ Konten
@@ -511,7 +527,9 @@ routes = [
 
 
 def create_app() -> Starlette:
-    _password()          # früh scheitern, wenn kein Passwort gesetzt ist
+    if not _password() and not _trust_ingress():
+        # Ohne Passwort und ohne Ingress-Vertrauen wäre die App ungeschützt erreichbar.
+        raise RuntimeError("APP_PASSWORD ist nicht gesetzt. Ohne Passwort startet die App aus Sicherheitsgründen nicht.")
     init_db()
     return Starlette(routes=routes, middleware=[Middleware(AuthMiddleware)])
 

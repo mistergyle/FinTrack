@@ -24,7 +24,7 @@ async function api(path, opts = {}) {
     o.headers = { 'Content-Type': 'application/json' };
     o.body = JSON.stringify(o.json);
   }
-  const r = await fetch('/api' + path, o);
+  const r = await fetch('api' + path, o);  // relativ: funktioniert auch unter dem Ingress-Pfad von Home Assistant
   const data = await r.json().catch(() => ({}));
   if (r.status === 401 && !path.startsWith('/login')) { showLogin(); throw new Error('Nicht angemeldet'); }
   if (!r.ok) throw new Error(data.error || `Fehler ${r.status}`);
@@ -445,4 +445,8 @@ $('#login-form').onsubmit = async e => {
 };
 $('#logout').onclick = async () => { await api('/logout', { json: {} }); state.cats = []; showLogin(); };
 window.addEventListener('hashchange', route);
-(async () => { const s = await fetch('/api/session').then(r => r.json()); s.authenticated ? showApp() : showLogin(); })();
+(async () => {
+  const s = await fetch('api/session').then(r => r.json());
+  if (s.ingress) $('#logout').classList.add('hidden');   // Anmeldung übernimmt Home Assistant
+  s.authenticated ? showApp() : showLogin();
+})();

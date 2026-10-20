@@ -263,7 +263,8 @@ class ApiTests(unittest.TestCase):
         c = self.c
         c.post("/api/login", json={"password": "geheim"})
         r = c.get("/api/session")
-        self.assertEqual(r.headers["x-frame-options"], "DENY")
+        self.assertEqual(r.headers["x-frame-options"], "SAMEORIGIN")
+        self.assertIn("frame-ancestors 'self'", r.headers["content-security-policy"])
         r = c.post("/api/import", files={"file": ("x.csv", b"foo;bar\n1;2\n", "text/csv")})
         self.assertEqual(r.status_code, 400)
 
@@ -513,6 +514,197 @@ class ComdirectApiTests(unittest.TestCase):
             self.assertEqual(r.status_code, 202)
         finally:
             comdirect_sync.ComdirectClient = orig
+
+
+
+# ------------------------------------------------------------------ Home-Assistant-Add-on
+
+import shutil  # noqa: E402
+import subprocess  # noqa: E402
+
+ADDON_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+REPO_DIR = os.path.dirname(ADDON_DIR)
+
+
+class IngressAuthTests(unittest.TestCase):
+    """TRUST_INGRESS=1: Anfragen vom Supervisor-Peer sind angemeldet, alle anderen nicht."""
+
+    KEYS = ("APP_PASSWORD", "TRUST_INGRESS", "INGRESS_IP")
+
+    def setUp(self):
+        self._saved = {k: os.environ.get(k) for k in self.KEYS}
+        fresh_db()
+
+    def tearDown(self):
+        for k, v in self._saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def _env(self, password=None, trust="1", ingress_ip="testclient"):
+        for k, v in (("APP_PASSWORD", password), ("TRUST_INGRESS", trust), ("INGRESS_IP", ingress_ip)):
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+    def test_ingress_peer_needs_no_login(self):
+        self._env(password=None)
+        c = TestClient(create_app())
+        self.assertEqual(c.get("/api/accounts").status_code, 200)
+        s = c.get("/api/session").json()
+        self.assertTrue(s["authenticated"] and s["ingress"])
+        self.assertFalse(s["login_available"])
+
+    def test_direct_access_without_password_is_blocked(self):
+        self._env(password=None, ingress_ip="172.30.32.2")        # Testclient ist nicht der Supervisor
+        c = TestClient(create_app())
+        self.assertEqual(c.get("/api/accounts").status_code, 401)
+        r = c.post("/api/login", json={"password": ""})
+        self.assertEqual(r.status_code, 403)
+        self.assertFalse(c.get("/api/session").json()["authenticated"])
+
+    def test_direct_access_with_password(self):
+        self._env(password="geheim", ingress_ip="172.30.32.2")
+        c = TestClient(create_app())
+        self.assertEqual(c.get("/api/accounts").status_code, 401)
+        self.assertEqual(c.post("/api/login", json={"password": "falsch"}).status_code, 401)
+        self.assertEqual(c.post("/api/login", json={"password": "geheim"}).status_code, 200)
+        self.assertEqual(c.get("/api/accounts").status_code, 200)
+        self.assertFalse(c.get("/api/session").json()["ingress"])
+
+    def test_empty_password_never_matches_login(self):
+        self._env(password="", ingress_ip="172.30.32.2")
+        c = TestClient(create_app())
+        self.assertEqual(c.post("/api/login", json={"password": ""}).status_code, 403)
+        # ein leeres/gefälschtes Cookie darf nichts freischalten
+        c.cookies.set("finanz_session", "")
+        self.assertEqual(c.get("/api/accounts").status_code, 401)
+
+    def test_standalone_still_requires_password(self):
+        self._env(password=None, trust=None)
+        with self.assertRaises(RuntimeError):
+            create_app()
+
+
+@unittest.skipUnless(shutil.which("jq") and shutil.which("bash"), "jq/bash nötig")
+class RunScriptTests(unittest.TestCase):
+    """run.sh mit nachgebautem bashio: Add-on-Optionen -> Umgebungsvariablen der App."""
+
+    SHIM = r"""
+bashio::config() { jq -r ".$1 // empty" "$OPTIONS_FILE"; }
+bashio::config.has_value() { [ -n "$(jq -r ".$1 // empty" "$OPTIONS_FILE")" ]; }
+bashio::config.true() { [ "$(jq -r ".$1 // false" "$OPTIONS_FILE")" = "true" ]; }
+bashio::log.info() { echo "LOG: $*" >&2; }
+"""
+    FAKE_PY = r"""#!/bin/sh
+echo "ARGS=$*"
+for v in FINANZ_DB TRUST_INGRESS APP_PASSWORD FINTS_PRODUCT_ID COMDIRECT_CLIENT_ID COMDIRECT_CLIENT_SECRET COOKIE_SECURE; do
+  eval "val=\${$v-__UNSET__}"
+  echo "$v=$val"
+done
+"""
+
+    def run_script(self, options: dict, env_extra: dict | None = None):
+        import json
+        d = tempfile.mkdtemp()
+        with open(os.path.join(d, "options.json"), "w") as f:
+            json.dump(options, f)
+        with open(os.path.join(d, "shim.sh"), "w") as f:
+            f.write(self.SHIM)
+        os.makedirs(os.path.join(d, "bin"))
+        py = os.path.join(d, "bin", "python3")
+        with open(py, "w") as f:
+            f.write(self.FAKE_PY)
+        os.chmod(py, 0o755)
+        env = {"PATH": os.path.join(d, "bin") + os.pathsep + os.environ["PATH"], "OPTIONS_FILE": os.path.join(d, "options.json"),
+               "BASH_ENV": os.path.join(d, "shim.sh"), "FINTRACK_HOME": d, **(env_extra or {})}
+        r = subprocess.run(["bash", os.path.join(ADDON_DIR, "run.sh")], env=env, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        out = dict(line.split("=", 1) for line in r.stdout.splitlines() if "=" in line)
+        return out, r.stderr
+
+    def test_all_options_mapped(self):
+        out, log = self.run_script({
+            "password": "pw!1", "fints_product_id": "PID", "comdirect_client_id": "cid",
+            "comdirect_client_secret": "sec", "cookie_secure": True, "log_level": "debug"})
+        self.assertEqual(out["APP_PASSWORD"], "pw!1")
+        self.assertEqual(out["FINTS_PRODUCT_ID"], "PID")
+        self.assertEqual(out["COMDIRECT_CLIENT_ID"], "cid")
+        self.assertEqual(out["COMDIRECT_CLIENT_SECRET"], "sec")
+        self.assertEqual(out["COOKIE_SECURE"], "1")
+        self.assertEqual(out["TRUST_INGRESS"], "1")
+        self.assertEqual(out["FINANZ_DB"], "/data/finanz.db")
+        self.assertIn("--log-level debug", out["ARGS"])
+        self.assertIn("app.main:app", out["ARGS"])
+        for secret in ("pw!1", "sec"):
+            self.assertNotIn(secret, log)               # Geheimnisse dürfen nicht im Log landen
+
+    def test_empty_options_leave_vars_unset(self):
+        out, _ = self.run_script({"password": "", "fints_product_id": "", "comdirect_client_id": "",
+                                  "comdirect_client_secret": "", "cookie_secure": False, "log_level": "info"},
+                                 env_extra={"APP_PASSWORD": "aus-der-umgebung"})
+        for k in ("APP_PASSWORD", "FINTS_PRODUCT_ID", "COMDIRECT_CLIENT_ID", "COMDIRECT_CLIENT_SECRET"):
+            self.assertEqual(out[k], "__UNSET__", k)
+        self.assertEqual(out["COOKIE_SECURE"], "0")
+        self.assertIn("--log-level info", out["ARGS"])
+
+
+class AddonConfigTests(unittest.TestCase):
+    def setUp(self):
+        try:
+            import yaml
+        except ImportError:
+            self.skipTest("pyyaml fehlt")
+        self.yaml = yaml
+        with open(os.path.join(ADDON_DIR, "config.yaml")) as f:
+            self.cfg = yaml.safe_load(f)
+
+    def test_required_fields(self):
+        c = self.cfg
+        for k in ("name", "version", "slug", "description", "arch", "options", "schema"):
+            self.assertIn(k, c)
+        self.assertTrue(c["ingress"])
+        self.assertEqual(c["ingress_port"], 8000)
+        self.assertIn("/healthz", c["watchdog"])
+        self.assertTrue(os.path.exists(os.path.join(REPO_DIR, "repository.yaml")))
+
+    def test_options_schema_translations_agree(self):
+        opts, schema = set(self.cfg["options"]), set(self.cfg["schema"])
+        self.assertEqual(opts, schema)
+        for lang in ("de", "en"):
+            with open(os.path.join(ADDON_DIR, "translations", f"{lang}.yaml")) as f:
+                tr = self.yaml.safe_load(f)
+            self.assertEqual(set(tr["configuration"]), opts, lang)
+            for o in opts:
+                self.assertTrue(tr["configuration"][o]["name"] and tr["configuration"][o]["description"], (lang, o))
+            self.assertIn("8000/tcp", tr["network"])
+        with open(os.path.join(ADDON_DIR, "run.sh")) as f:
+            script = f.read()
+        for o in opts:
+            self.assertIn(f"'{o}'", script, f"run.sh liest Option {o} nicht")
+
+    def test_every_env_var_is_an_addon_option(self):
+        """Alles, was in .env.example steht, muss im Add-on konfigurierbar sein."""
+        mapping = {"APP_PASSWORD": "password", "FINTS_PRODUCT_ID": "fints_product_id",
+                   "COMDIRECT_CLIENT_ID": "comdirect_client_id", "COMDIRECT_CLIENT_SECRET": "comdirect_client_secret",
+                   "COOKIE_SECURE": "cookie_secure"}
+        with open(os.path.join(REPO_DIR, ".env.example")) as f:
+            names = [l.split("=", 1)[0].strip() for l in f if "=" in l and not l.lstrip().startswith("#")]
+        self.assertTrue(names)
+        for n in names:
+            self.assertIn(n, mapping, f"{n} fehlt in der Zuordnung")
+            self.assertIn(mapping[n], self.cfg["options"], f"{n} ist keine Add-on-Option")
+
+    def test_ui_uses_relative_paths(self):
+        """Hinter Ingress liegt die App unter /api/hassio_ingress/<token>/ – absolute Pfade würden brechen."""
+        html = open(os.path.join(ADDON_DIR, "app", "static", "index.html")).read()
+        js = open(os.path.join(ADDON_DIR, "app", "static", "app.js")).read()
+        for needle in ('href="/', 'src="/'):
+            self.assertNotIn(needle, html)
+        self.assertNotIn("fetch('/", js)
+        self.assertNotIn('fetch("/', js)
 
 
 if __name__ == "__main__":

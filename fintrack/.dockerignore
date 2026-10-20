@@ -3,4 +3,5 @@ __pycache__/
 data/
 .env
 tests/
+Dockerfile.standalone
 .git

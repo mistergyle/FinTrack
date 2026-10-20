@@ -1,6 +1,9 @@
+# Betrieb ohne Home Assistant (Standalone). Für das Home-Assistant-Add-on siehe README.
 services:
   finanz:
-    build: .
+    build:
+      context: ./fintrack
+      dockerfile: Dockerfile.standalone
     restart: unless-stopped
     # Nur lokal erreichbar. Für Zugriff von außen einen Reverse-Proxy mit HTTPS davorsetzen (siehe README).
     ports:

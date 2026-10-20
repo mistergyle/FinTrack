@@ -1,0 +1,27 @@
+configuration:
+  password:
+    name: Passwort (nur für Direktzugriff)
+    description: >-
+      Optional. Über die Home-Assistant-Seitenleiste (Ingress) ist keine zweite Anmeldung nötig. Nur wenn du
+      den Port 8000 freigibst und die App direkt aufrufst, wird dieses Passwort verlangt. Leer lassen = kein
+      Direktzugriff.
+  fints_product_id:
+    name: FinTS-Produkt-ID
+    description: >-
+      Optional. Registrierte Produkt-ID der Deutschen Kreditwirtschaft für den automatischen FinTS-Abruf.
+      Ohne sie bleibt der CSV-Import (und die comdirect-API) nutzbar.
+  comdirect_client_id:
+    name: comdirect API Client-ID
+    description: Optional. OAuth-Zugangsdaten für die comdirect REST-API (aus dem comdirect-Konto).
+  comdirect_client_secret:
+    name: comdirect API Client-Secret
+    description: Optional. Gehört zur Client-ID.
+  cookie_secure:
+    name: Cookie nur über HTTPS
+    description: >-
+      Nur für den Direktzugriff relevant. Aktivieren, wenn die App über HTTPS ausgeliefert wird.
+  log_level:
+    name: Log-Level
+    description: Ausführlichkeit der Protokollierung.
+network:
+  8000/tcp: Weboberfläche (Direktzugriff, nur mit gesetztem Passwort)

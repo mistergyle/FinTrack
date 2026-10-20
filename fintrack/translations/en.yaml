@@ -1,0 +1,25 @@
+configuration:
+  password:
+    name: Password (direct access only)
+    description: >-
+      Optional. Opening the app from the Home Assistant sidebar (ingress) needs no second login. Only if you
+      expose port 8000 and open the app directly, this password is required. Leave empty = no direct access.
+  fints_product_id:
+    name: FinTS product ID
+    description: >-
+      Optional. Registered Deutsche Kreditwirtschaft product ID for automatic FinTS retrieval.
+      Without it, CSV import (and the comdirect API) still work.
+  comdirect_client_id:
+    name: comdirect API client ID
+    description: Optional. OAuth credentials for the comdirect REST API (from your comdirect account).
+  comdirect_client_secret:
+    name: comdirect API client secret
+    description: Optional. Belongs to the client ID.
+  cookie_secure:
+    name: Secure cookie (HTTPS only)
+    description: Only relevant for direct access. Enable when the app is served over HTTPS.
+  log_level:
+    name: Log level
+    description: Verbosity of logging.
+network:
+  8000/tcp: Web interface (direct access, only with a password set)

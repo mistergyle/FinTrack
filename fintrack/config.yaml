@@ -1,0 +1,37 @@
+name: FinTrack
+version: "0.2.0"
+slug: fintrack
+description: Selbst gehostete Finanzübersicht – Umsätze von ING und comdirect importieren, kategorisieren und auswerten
+url: https://github.com/mistergyle/FinTrack
+arch:
+  - amd64
+  - aarch64
+init: false
+startup: application
+boot: auto
+# Einbindung in die Home-Assistant-Seitenleiste (Anmeldung übernimmt Home Assistant)
+ingress: true
+ingress_port: 8000
+panel_icon: mdi:cash-multiple
+panel_title: FinTrack
+panel_admin: true
+watchdog: http://[HOST]:[PORT:8000]/healthz
+# Direktzugriff ist standardmäßig aus. Er funktioniert nur, wenn unten ein Passwort gesetzt ist.
+ports:
+  8000/tcp: null
+ports_description:
+  8000/tcp: Weboberfläche (Direktzugriff, nur mit gesetztem Passwort)
+options:
+  password: ""
+  fints_product_id: ""
+  comdirect_client_id: ""
+  comdirect_client_secret: ""
+  cookie_secure: false
+  log_level: info
+schema:
+  password: password?
+  fints_product_id: str?
+  comdirect_client_id: str?
+  comdirect_client_secret: password?
+  cookie_secure: bool?
+  log_level: list(debug|info|warning|error)?
