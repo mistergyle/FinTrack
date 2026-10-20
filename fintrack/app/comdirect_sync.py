@@ -16,6 +16,7 @@ import uuid
 
 
 log = logging.getLogger("uvicorn.error").getChild("comdirect")
+log.setLevel(logging.INFO)
 
 
 def _run(job: Job, account: dict, pin: str, days: int, factory: Callable[..., Any]) -> None:
