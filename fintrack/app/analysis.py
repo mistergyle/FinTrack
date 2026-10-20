@@ -10,6 +10,8 @@ from datetime import date, timedelta
 
 
 def month_bounds(month: str) -> tuple[str, str]:
+    if len(month) == 4:                                   # ganzes Jahr: "2026"
+        return f"{int(month):04d}-01-01", f"{int(month):04d}-12-31"
     y, m = map(int, month.split("-"))
     last = calendar.monthrange(y, m)[1]
     return f"{y:04d}-{m:02d}-01", f"{y:04d}-{m:02d}-{last:02d}"
@@ -38,22 +40,36 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
     today = today or date.today()
     start, end = month_bounds(month)
     rows = _spend_by_category(conn, start, end, account_id)
-    budgets = {r["category_id"]: r["monthly_cents"] for r in conn.execute("SELECT * FROM budgets")}
+    is_year = len(month) == 4
+    factor = 12 if is_year else 1                         # Monatsbudgets aufs Jahr hochrechnen
+    budgets = {r["category_id"]: r["monthly_cents"] * factor for r in conn.execute("SELECT * FROM budgets")}
 
-    # Durchschnitt der letzten 3 vollen Monate je Kategorie (Vergleichswert)
-    prev = [shift_month(month, -i) for i in (1, 2, 3)]
+    # Vergleichswert: Monat -> Ø der letzten 3 vollen Monate, Jahr -> Vorjahr
     avg: dict[int, float] = defaultdict(float)
-    for pm in prev:
-        ps, pe = month_bounds(pm)
+    if is_year:
+        ps, pe = month_bounds(str(int(month) - 1))
         for r in _spend_by_category(conn, ps, pe, account_id):
             if r["kind"] == "expense":
-                avg[r["id"]] += -r["s"] / 3
+                avg[r["id"]] += -r["s"]
+    else:
+        for pm in [shift_month(month, -i) for i in (1, 2, 3)]:
+            ps, pe = month_bounds(pm)
+            for r in _spend_by_category(conn, ps, pe, account_id):
+                if r["kind"] == "expense":
+                    avg[r["id"]] += -r["s"] / 3
 
-    y, m = map(int, month.split("-"))
-    days_in_month = calendar.monthrange(y, m)[1]
-    is_current = (today.year, today.month) == (y, m)
-    is_future = (today.year, today.month) < (y, m)
-    elapsed = today.day if is_current else (0 if is_future else days_in_month)
+    if is_year:
+        y, m = int(month), 1
+        days_in_month = 366 if calendar.isleap(y) else 365
+        is_current = today.year == y
+        is_future = today.year < y
+        elapsed = today.timetuple().tm_yday if is_current else (0 if is_future else days_in_month)
+    else:
+        y, m = map(int, month.split("-"))
+        days_in_month = calendar.monthrange(y, m)[1]
+        is_current = (today.year, today.month) == (y, m)
+        is_future = (today.year, today.month) < (y, m)
+        elapsed = today.day if is_current else (0 if is_future else days_in_month)
 
     income = 0
     expenses = 0
@@ -114,8 +130,9 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
     per_day = {r["d"]: r["s"] for r in conn.execute(q, args)}
     cumulative, run = [], 0
     last_day = elapsed if (is_current or is_future) else days_in_month
-    for d in range(1, last_day + 1):
-        run += per_day.get(f"{y:04d}-{m:02d}-{d:02d}", 0)
+    first = date(y, 1, 1) if is_year else date(y, m, 1)
+    for d in range(last_day):
+        run += per_day.get((first + timedelta(days=d)).isoformat(), 0)
         cumulative.append(run)
 
     q = ("SELECT CASE WHEN t.payee='' THEN t.booking_text ELSE t.payee END AS p, SUM(-t.amount_cents) s, COUNT(*) n "
@@ -130,7 +147,7 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
 
     projected_total = round(expenses / elapsed * days_in_month) if is_current and elapsed else expenses
     return {
-        "month": month, "days_in_month": days_in_month, "elapsed_days": elapsed, "is_current": is_current,
+        "month": month, "is_year": is_year, "days_in_month": days_in_month, "elapsed_days": elapsed, "is_current": is_current,
         "income_cents": income, "expenses_cents": expenses, "net_cents": income - expenses,
         "savings_rate": round((income - expenses) / income, 4) if income > 0 else None,
         "transfers_cents": transfers_out,

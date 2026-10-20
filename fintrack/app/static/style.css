@@ -230,3 +230,9 @@ table.stack td.nm .nmtxt, td.nm .nmtxt { min-width: 0; }
 .ib.danger:hover { color: var(--bad); }
 @media (max-width: 640px) { .ib { width: 44px; height: 44px; } .cat-mgmt .grow { overflow-wrap: anywhere; } }
 .cat-mgmt .grow > .muted { display: block; font-size: .82rem; }
+
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.seg .btn { border: 0; border-radius: 0; background: transparent; color: var(--muted); }
+.seg .btn.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--accent); }
+.break { display: none; }
+@media (max-width: 640px) { .break { display: block; flex-basis: 100%; height: 0; } .seg { width: 100%; } .seg .btn { flex: 1; } }

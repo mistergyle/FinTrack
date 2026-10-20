@@ -501,8 +501,8 @@ async def budget_suggestions(request: Request):
 
 def _month_param(request: Request) -> str:
     m = request.query_params.get("month") or date.today().strftime("%Y-%m")
-    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", m):
-        raise ValueError("month muss YYYY-MM sein")
+    if not re.fullmatch(r"\d{4}(-(0[1-9]|1[0-2]))?", m):
+        raise ValueError("month muss YYYY-MM oder YYYY sein")
     return m
 
 
@@ -514,7 +514,7 @@ async def api_overview(request: Request):
     acc = request.query_params.get("account_id")
     with session() as conn:
         data = analysis.overview(conn, month, account_id=int(acc) if acc else None)
-        if data["is_current"]:
+        if data["is_current"] and not data["is_year"]:
             data["upcoming"] = analysis.upcoming_this_month(conn)
         return JSONResponse(data)
 
@@ -522,8 +522,12 @@ async def api_overview(request: Request):
 async def api_monthly(request: Request):
     acc = request.query_params.get("account_id")
     with session() as conn:
+        end = request.query_params.get("end_month")
+        if end and not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", end):
+            return err("end_month muss YYYY-MM sein.")
         return JSONResponse({"months": analysis.monthly_series(
-            conn, int(request.query_params.get("months", 12)), account_id=int(acc) if acc else None)})
+            conn, int(request.query_params.get("months", 12)), end_month=end or None,
+            account_id=int(acc) if acc else None)})
 
 
 async def api_recurring(request: Request):

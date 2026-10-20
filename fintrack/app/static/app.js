@@ -9,8 +9,9 @@ const eur = c => fmt.format((c || 0) / 100);
 const eur0 = c => fmt0.format((c || 0) / 100);
 const pct = v => v == null ? '–' : (v * 100).toLocaleString('de-DE', { maximumFractionDigits: 0 }) + ' %';
 const ymNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
-const shiftYm = (ym, n) => { const [y, m] = ym.split('-').map(Number); const i = y * 12 + m - 1 + n; return `${Math.floor(i / 12)}-${String(i % 12 + 1).padStart(2, '0')}`; };
-const monthName = ym => new Date(ym + '-01T12:00:00').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+const isYear = ym => /^\d{4}$/.test(ym);
+const shiftYm = (ym, n) => { if (isYear(ym)) return String(Number(ym) + n);  const [y, m] = ym.split('-').map(Number); const i = y * 12 + m - 1 + n; return `${Math.floor(i / 12)}-${String(i % 12 + 1).padStart(2, '0')}`; };
+const monthName = ym => isYear(ym) ? ym : new Date(ym + '-01T12:00:00').toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
 const monthShort = ym => new Date(ym + '-01T12:00:00').toLocaleDateString('de-DE', { month: 'short' }).replace('.', '');
 const dateDe = iso => iso ? iso.split('-').reverse().join('.') : '';
 const sgn = c => `<span class="${c > 0 ? 'pos' : 'neg'}">${c > 0 ? '+' : ''}${eur(c)}</span>`;
@@ -72,11 +73,13 @@ const catOptions = (sel, kinds) => {
     ? `<optgroup label="${esc(t.name)}">${opt(t, t.name + ' (allgemein)')}${t.children.map(c => opt(c)).join('')}</optgroup>` : opt(t)).join('');
 };
 
-function monthToolbar(withAccount = true) {
+function monthToolbar(withAccount = true, withYear = false) {
+  const yr = isYear(state.month);
   return `<div class="toolbar">
-    <button class="btn" id="m-prev" aria-label="Vorheriger Monat">‹</button>
+    ${withYear ? `<div class="seg" role="group" aria-label="Zeitraum"><button class="btn ${yr ? '' : 'on'}" id="p-month" aria-pressed="${!yr}">Monat</button><button class="btn ${yr ? 'on' : ''}" id="p-year" aria-pressed="${yr}">Jahr</button></div><span class="break"></span>` : ''}
+    <button class="btn" id="m-prev" aria-label="${yr ? 'Vorheriges Jahr' : 'Vorheriger Monat'}">‹</button>
     <h1>${esc(monthName(state.month))}</h1>
-    <button class="btn" id="m-next" aria-label="Nächster Monat">›</button>
+    <button class="btn" id="m-next" aria-label="${yr ? 'Nächstes Jahr' : 'Nächster Monat'}">›</button>
     <button class="btn ghost" id="m-now">Heute</button>
     <span class="spacer"></span>
     ${withAccount ? `<select id="acc-filter" aria-label="Konto"><option value="">Alle Konten</option>${state.accounts.map(a =>
@@ -86,7 +89,10 @@ function monthToolbar(withAccount = true) {
 function wireToolbar(rerender) {
   $('#m-prev').onclick = () => { state.month = shiftYm(state.month, -1); rerender(); };
   $('#m-next').onclick = () => { state.month = shiftYm(state.month, 1); rerender(); };
-  $('#m-now').onclick = () => { state.month = ymNow(); rerender(); };
+  $('#m-now').onclick = () => { state.month = isYear(state.month) ? ymNow().slice(0, 4) : ymNow(); rerender(); };
+  const pm = $('#p-month'), py = $('#p-year');
+  if (pm) pm.onclick = () => { if (isYear(state.month)) { const y = state.month; state.month = y === ymNow().slice(0, 4) ? ymNow() : `${y}-12`; rerender(); } };
+  if (py) py.onclick = () => { if (!isYear(state.month)) { state.month = state.month.slice(0, 4); rerender(); } };
   const f = $('#acc-filter');
   if (f) f.onchange = () => { state.accountId = f.value; rerender(); };
 }
@@ -95,7 +101,7 @@ function wireToolbar(rerender) {
 function chartW(max) { const w = ($('#view') || {}).clientWidth || max; return Math.max(280, Math.min(max, w - 40)); }
 function barChart(months, selected) {
   const W = chartW(720), H = W < 480 ? 200 : 230, pad = { l: 52, r: 8, t: 10, b: 24 };
-  if (W < 480) months = months.slice(-6);
+  if (W < 480 && !isYear(selected)) months = months.slice(-6);
   const max = Math.max(1, ...months.flatMap(m => [m.income_cents, m.expenses_cents]));
   const nice = Math.ceil(max / 100 / 500) * 500 * 100 || 10000;
   const iw = W - pad.l - pad.r, ih = H - pad.t - pad.b, gw = iw / months.length, bw = Math.min(16, gw / 3);
@@ -106,7 +112,7 @@ function barChart(months, selected) {
     s += `<line class="gridline" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${eur0(v)}</text>`;
   }
   months.forEach((m, i) => {
-    const cx = pad.l + gw * i + gw / 2, cls = m.month === selected ? 'sel' : 'dim';
+    const cx = pad.l + gw * i + gw / 2, cls = (m.month === selected || (isYear(selected) && m.month.startsWith(selected))) ? 'sel' : 'dim';
     s += `<g class="${cls}"><title>${esc(monthName(m.month))}: Einnahmen ${eur(m.income_cents)}, Ausgaben ${eur(m.expenses_cents)}</title>
       <rect class="inc" x="${cx - bw - 1}" y="${y(Math.max(0, m.income_cents))}" width="${bw}" height="${Math.max(0, ih - (y(Math.max(0, m.income_cents)) - pad.t))}" rx="3"/>
       <rect class="exp" x="${cx + 1}" y="${y(m.expenses_cents)}" width="${bw}" height="${Math.max(0, ih - (y(m.expenses_cents) - pad.t))}" rx="3"/></g>
@@ -126,7 +132,13 @@ function lineChart(o) {
     const v = top * i / 4;
     s += `<line class="gridline" x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${eur0(v)}</text>`;
   }
-  [1, 8, 15, 22, n].forEach(d => { s += `<text x="${x(d)}" y="${H - 6}" text-anchor="middle">${d}.</text>`; });
+  if (o.is_year) {
+    const yy = Number(o.month); let day = 1;
+    for (let mo = 0; mo < 12; mo++) {
+      if (mo % (W < 480 ? 2 : 1) === 0) s += `<text x="${x(day)}" y="${H - 6}" text-anchor="middle">${monthShort(`${yy}-${String(mo + 1).padStart(2, '0')}`)}</text>`;
+      day += new Date(yy, mo + 1, 0).getDate();
+    }
+  } else [1, 8, 15, 22, n].forEach(d => { s += `<text x="${x(d)}" y="${H - 6}" text-anchor="middle">${d}.</text>`; });
   if (o.total_budget_cents) s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(o.total_budget_cents)}" y2="${y(o.total_budget_cents)}" stroke="var(--warn)" stroke-dasharray="5 4"/><text x="${W - pad.r}" y="${y(o.total_budget_cents) - 5}" text-anchor="end">Budget ${eur0(o.total_budget_cents)}</text>`;
   if (cum.length) {
     const pts = cum.map((v, i) => `${x(i + 1)},${y(v)}`).join(' ');
@@ -142,34 +154,34 @@ function lineChart(o) {
 async function viewOverview() {
   const v = $('#view');
   const acc = state.accountId ? `&account_id=${state.accountId}` : '';
-  const [o, ms] = await Promise.all([api(`/analysis/overview?month=${state.month}${acc}`), api(`/analysis/monthly?months=12${acc}`)]);
+  const [o, ms] = await Promise.all([api(`/analysis/overview?month=${state.month}${acc}`), api(`/analysis/monthly?months=12${isYear(state.month) ? `&end_month=${state.month}-12` : ''}${acc}`)]);
   if (!state.accounts.length) {
     v.innerHTML = `<div class="card empty"><h2>Willkommen 👋</h2><p>Lege zuerst ein Konto an und importiere deine Umsätze.</p><a class="btn primary" href="#/konten">Zu den Konten</a></div>`;
     return;
   }
   const maxSpent = Math.max(1, ...o.categories.map(c => Math.max(c.spent_cents, c.budget_cents || 0)));
   const hasData = o.income_cents || o.expenses_cents || o.categories.length;
-  v.innerHTML = monthToolbar() + `
+  v.innerHTML = monthToolbar(true, true) + `
     <div class="grid kpis">
       <div class="card kpi"><div class="label">Einnahmen</div><div class="value pos">${eur(o.income_cents)}</div></div>
       <div class="card kpi"><div class="label">Ausgaben</div><div class="value">${eur(o.expenses_cents)}</div>
-        ${o.is_current ? `<div class="sub">Prognose Monatsende ≈ ${eur0(o.projected_expenses_cents)}</div>` : ''}</div>
+        ${o.is_current ? `<div class="sub">Prognose ${o.is_year ? 'Jahresende' : 'Monatsende'} ≈ ${eur0(o.projected_expenses_cents)}</div>` : ''}</div>
       <div class="card kpi"><div class="label">Saldo</div><div class="value ${o.net_cents >= 0 ? 'pos' : ''}">${eur(o.net_cents)}</div>
         <div class="sub">Sparquote ${pct(o.savings_rate)}</div></div>
       <div class="card kpi"><div class="label">Sparen &amp; Umbuchungen</div><div class="value">${eur(o.transfers_cents)}</div><div class="sub">zählt nicht als Ausgabe</div></div>
     </div>
-    <div class="card" style="margin-bottom:1rem"><h2>Einnahmen &amp; Ausgaben · 12 Monate</h2>${barChart(ms.months, state.month)}</div>
+    <div class="card" style="margin-bottom:1rem"><h2>Einnahmen &amp; Ausgaben · ${isYear(state.month) ? state.month : '12 Monate'}</h2>${barChart(ms.months, state.month)}</div>
     ${hasData ? `<div class="grid two">
       <div class="card"><h2>Ausgaben nach Kategorie</h2>
         ${o.categories.length ? o.categories.map(c => {
           const row = (c, child) => {
             const w = Math.min(100, Math.max(0, c.spent_cents) / maxSpent * 100);
             const proj = o.is_current && c.budget_cents ? Math.min(100, c.projected_cents / maxSpent * 100) : null;
-            const bud = c.budget_cents ? `<small>von ${eur0(c.budget_cents)} · <span class="pill ${c.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten', none: '' }[c.status]}</span></small>` : (c.avg3_cents ? `<small>Ø 3 Mon. ${eur0(c.avg3_cents)}</small>` : '');
+            const bud = c.budget_cents ? `<small>von ${eur0(c.budget_cents)} · <span class="pill ${c.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten', none: '' }[c.status]}</span></small>` : (c.avg3_cents ? `<small>${o.is_year ? 'Vorjahr' : 'Ø 3 Mon.'} ${eur0(c.avg3_cents)}</small>` : '');
             const toggle = !child && c.children && c.children.length ? `<button class="chev" type="button" data-toggle="${c.id}" aria-expanded="false" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : (child ? '' : '<span class="chev-gap"></span>');
             return `<div class="cat-row${child ? ' child' : ''}" data-cat="${c.id}" ${child ? `data-parent="${child}" hidden` : ''} title="Umsätze anzeigen">
               <span class="cat-name">${toggle}<span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>
-              <div class="bar"><div class="fill ${c.status === 'none' ? '' : c.status}" style="width:${w}%;${c.status === 'none' ? `background:${esc(c.color)}` : ''}"></div>${proj != null ? `<div class="proj" style="left:${proj}%" title="Prognose Monatsende: ${eur(c.projected_cents)}"></div>` : ''}</div>
+              <div class="bar"><div class="fill ${c.status === 'none' ? '' : c.status}" style="width:${w}%;${c.status === 'none' ? `background:${esc(c.color)}` : ''}"></div>${proj != null ? `<div class="proj" style="left:${proj}%" title="Prognose ${o.is_year ? 'Jahresende' : 'Monatsende'}: ${eur(c.projected_cents)}"></div>` : ''}</div>
               <span class="amt">${eur(c.spent_cents)}${bud}</span></div>`;
           };
           const rest = c.own_cents && c.children.length ? [{ id: c.id, name: 'ohne Unterkategorie', color: c.color, spent_cents: c.own_cents, budget_cents: null, projected_cents: c.own_cents, avg3_cents: 0, status: 'none' }] : [];
@@ -177,7 +189,7 @@ async function viewOverview() {
         }).join('') : '<p class="muted">Keine Ausgaben in diesem Monat.</p>'}
       </div>
       <div style="display:grid;gap:1rem;align-content:start">
-        <div class="card"><h2>Verlauf im Monat</h2>${lineChart(o)}</div>
+        <div class="card"><h2>Verlauf im ${o.is_year ? 'Jahr' : 'Monat'}</h2>${lineChart(o)}</div>
         <div class="card"><h2>Größte Empfänger</h2>
           ${o.top_payees.map(p => `<div class="list-item"><div class="grow"><div class="title">${esc(p.payee || '–')}</div><div class="muted">${p.count}× </div></div><div class="num">${eur(p.spent_cents)}</div></div>`).join('') || '<p class="muted">–</p>'}
         </div>
@@ -211,7 +223,7 @@ async function viewTransactions(params) {
     if (txFilter.q) p.set('q', txFilter.q);
     return p;
   };
-  v.innerHTML = monthToolbar() + `
+  v.innerHTML = monthToolbar(true, true) + `
     <div class="toolbar">
       <input type="search" id="f-q" placeholder="Suchen (Empfänger, Verwendungszweck)…" value="${esc(txFilter.q)}" class="grow-in">
       <select id="f-cat"><option value="">Alle Kategorien</option><option value="none" ${txFilter.category_id === 'none' ? 'selected' : ''}>Ohne Kategorie</option>${catOptions(txFilter.category_id)}</select>
@@ -267,6 +279,7 @@ function askRule(sel) {
 
 async function viewBudgets() {
   const v = $('#view');
+  if (isYear(state.month)) state.month = state.month === ymNow().slice(0, 4) ? ymNow() : `${state.month}-12`;   // Budgets gibt es nur je Monat
   const [o, sug] = await Promise.all([api(`/analysis/overview?month=${state.month}`), api(`/budgets/suggestions?month=${state.month}`)]);
   const spent = {};
   o.categories.forEach(c => { spent[c.id] = c; (c.children || []).forEach(k => { if (k.id !== c.id) spent[k.id] = k; }); });

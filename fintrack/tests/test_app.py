@@ -217,6 +217,29 @@ class SubcategoryTests(unittest.TestCase):
         self.assertEqual(o["total_budget_cents"], 20000)
         self.assertEqual(next(x for x in o["categories"] if x["id"] == top)["budget_cents"], 20000)
 
+    def test_year_overview(self):
+        os.environ["APP_PASSWORD"] = "pw"
+        c = TestClient(create_app())
+        c.post("/api/login", json={"password": "pw"})
+        cats = {x["name"]: x for x in c.get("/api/categories").json()["categories"]}
+        acc = c.post("/api/accounts", json={"name": "A", "bank": "ing"}).json()["id"]
+        with session() as conn:
+            for i, (d, amt) in enumerate([("2026-01-15", -1000), ("2026-06-10", -2000), ("2026-12-31", -500), ("2025-05-05", -700)]):
+                conn.execute("INSERT INTO transactions(account_id,booking_date,payee,amount_cents,category_id,hash,created_at) "
+                             "VALUES(?,?,?,?,?,?,'x')", (acc, d, "X", amt, cats["Lebensmittel / Getränke"]["id"], f"y{i}"))
+        c.put(f"/api/budgets/{cats['Lebensmittel / Getränke']['id']}", json={"monthly_cents": 10000})
+        o = c.get("/api/analysis/overview?month=2026").json()
+        self.assertTrue(o["is_year"])
+        self.assertEqual(o["expenses_cents"], 3500)                    # nur 2026
+        self.assertEqual(o["total_budget_cents"], 120000)              # Monatsbudget × 12
+        self.assertEqual(o["days_in_month"], 365)
+        top = next(x for x in o["categories"] if x["name"] == "Lebenshaltung")
+        self.assertEqual(top["avg3_cents"], 700)                       # Vergleichswert = Vorjahr
+        ms = c.get("/api/analysis/monthly?months=12&end_month=2026-12").json()["months"]
+        self.assertEqual((ms[0]["month"], ms[-1]["month"]), ("2026-01", "2026-12"))
+        self.assertEqual(c.get("/api/transactions?month=2026").json()["total"], 3)
+        self.assertEqual(c.get("/api/analysis/overview?month=20x6").status_code, 400)
+
     def test_category_api_rules(self):
         from app.main import create_app
         from starlette.testclient import TestClient

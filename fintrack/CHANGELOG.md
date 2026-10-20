@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.0
+
+- Übersicht und Umsätze: Umschalter „Monat | Jahr“, ganzes Jahr auswählbar (z. B. 2026). Im Jahr werden Monatsbudgets mal 12 gerechnet, der Vergleichswert ist das Vorjahr, das Diagramm zeigt alle 12 Monate.
+
 ## 0.4.1
 
 - Kategorien verwalten: Hinzufügen, Bearbeiten und Löschen als Symbole in derselben Zeile wie der Kategoriename.
