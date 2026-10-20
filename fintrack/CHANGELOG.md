@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.1
+
+- Kategorien verwalten: Hinzufügen, Bearbeiten und Löschen als Symbole in derselben Zeile wie der Kategoriename.
+
 ## 0.4.0
 
 - Unterkategorien (optional, eine Ebene): Oberkategorien summieren ihre eigenen Umsätze und alle Unterkategorien auf (Übersicht, Diagramme, Budgets, Umsatzfilter).
