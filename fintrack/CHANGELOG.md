@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.8.0
+
+- Umsätze sortieren: Klick auf die Spaltenüberschriften „Datum“ und „Betrag“ (auf dem Handy per Auswahlfeld).
+- Neue Zeitraum-Auswahl: Antippen des Zeitraums öffnet einen Datepicker mit Monatsraster und Jahreswechsel; in Übersicht und Umsätze lässt sich auch „Ganzes Jahr“ wählen. Der Umschalter Monat/Jahr entfällt.
+
 ## 0.7.1
 
 - Automatische Kategorisierung: „Nahkauf“ und „Bäcker/Baecker“ (auch mitten im Namen, z. B. „Hinnerbaecker“) landen in „Lebensmittel / Getränke“. Die Regeln werden beim Start auch in bestehende Datenbanken eingetragen, vorhandene Umsätze (ohne manuell gesetzte Kategorie) werden neu kategorisiert.

@@ -306,6 +306,21 @@ class SubcategoryTests(unittest.TestCase):
         self.assertEqual(o["total_budget_cents"], 20000)
         self.assertEqual(next(x for x in o["categories"] if x["id"] == top)["budget_cents"], 20000)
 
+    def test_sorting(self):
+        os.environ["APP_PASSWORD"] = "pw"
+        c = TestClient(create_app())
+        c.post("/api/login", json={"password": "pw"})
+        acc = c.post("/api/accounts", json={"name": "A", "bank": "ing"}).json()["id"]
+        with session() as conn:
+            for i, (d, a) in enumerate([("2026-10-02", -500), ("2026-10-01", 9000), ("2026-10-03", -100)]):
+                conn.execute("INSERT INTO transactions(account_id,booking_date,payee,amount_cents,hash,created_at) VALUES(?,?,'X',?,?,'x')", (acc, d, a, f"s{i}"))
+        get = lambda q: [t["amount_cents"] for t in c.get("/api/transactions?" + q).json()["transactions"]]
+        self.assertEqual(get(""), [-100, -500, 9000])                              # Standard: Datum absteigend
+        self.assertEqual(get("sort=date&dir=asc"), [9000, -500, -100])
+        self.assertEqual(get("sort=amount&dir=asc"), [-500, -100, 9000])           # Ausgaben zuerst
+        self.assertEqual(get("sort=amount&dir=desc"), [9000, -100, -500])
+        self.assertEqual(get("sort=evil;DROP&dir=x"), [-100, -500, 9000])          # ungültig -> Standard
+
     def test_delete_filtered_transactions(self):
         os.environ["APP_PASSWORD"] = "pw"
         c = TestClient(create_app())

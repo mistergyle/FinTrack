@@ -319,13 +319,17 @@ async def list_transactions(request: Request):
     w, args = _tx_filter(p)
     limit = min(int(p.get("limit", 100)), 500)
     offset = int(p.get("offset", 0))
+    asc = p.get("dir") == "asc"
+    d = "ASC" if asc else "DESC"
+    order = {"amount": f"t.amount_cents {d}, t.booking_date DESC, t.id DESC"}.get(
+        p.get("sort"), f"t.booking_date {d}, t.id {d}")                   # Whitelist, kein SQL aus Parametern
     with session() as conn:
         total = conn.execute(f"SELECT COUNT(*), COALESCE(SUM(t.amount_cents),0) FROM transactions t WHERE {w}", args).fetchone()
         rows = conn.execute(
             f"SELECT t.*, a.name AS account_name, c.name AS category, c.color AS color "
             f"FROM transactions t JOIN accounts a ON a.id=t.account_id "
             f"LEFT JOIN categories c ON c.id=t.category_id WHERE {w} "
-            f"ORDER BY t.booking_date DESC, t.id DESC LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
+            f"ORDER BY {order} LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
         return JSONResponse({"total": total[0], "sum_cents": total[1],
                              "transactions": [{k: r[k] for k in r.keys() if k not in ("hash",)} for r in rows]})
 

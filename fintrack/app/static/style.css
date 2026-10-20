@@ -243,3 +243,19 @@ svg.sk text { fill: var(--ink); font-size: 12px; paint-order: stroke; stroke: va
 svg.sk text.v { fill: var(--muted); font-size: 11px; }
 svg.sk text.h { font-weight: 600; font-size: 12.5px; }
 svg.sk .sk-link { cursor: pointer; }
+
+.th-sort { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; display: inline-flex; gap: .3rem; align-items: center; }
+.th-sort .arr { font-size: .7rem; opacity: .5; } .th-sort.on { color: var(--ink); } .th-sort.on .arr { opacity: 1; color: var(--accent); }
+th.num .th-sort { flex-direction: row-reverse; }
+.sort-mobile { display: none; }
+.picker { display: inline-flex; align-items: center; gap: .5rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; text-transform: capitalize; }
+.picker svg { color: var(--muted); }
+.pp-year { display: flex; justify-content: space-between; align-items: center; margin-bottom: .8rem; font-size: 1.2rem; }
+.pp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: .5rem; }
+.pp-m, .pp-all { font: inherit; font-weight: 600; min-height: 46px; border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 10px; cursor: pointer; }
+.pp-m:hover, .pp-all:hover { background: var(--bar); }
+.pp-m.cur { border-color: var(--accent); }
+.pp-m.on, .pp-all.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.pp-all { width: 100%; margin-top: .6rem; }
+@media (max-width: 640px) { .sort-mobile { display: block; flex: 1 1 100%; } .picker { font-size: 1.05rem; flex: 1; justify-content: center; } }
+.picker span { white-space: nowrap; } @media (max-width: 640px) { .picker { font-size: 1rem; gap: .3rem; padding-left: .4rem; padding-right: .4rem; min-width: 0; } }

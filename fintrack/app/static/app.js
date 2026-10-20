@@ -76,9 +76,8 @@ const catOptions = (sel, kinds) => {
 function monthToolbar(withAccount = true, withYear = false) {
   const yr = isYear(state.month);
   return `<div class="toolbar">
-    ${withYear ? `<div class="seg" role="group" aria-label="Zeitraum"><button class="btn ${yr ? '' : 'on'}" id="p-month" aria-pressed="${!yr}">Monat</button><button class="btn ${yr ? 'on' : ''}" id="p-year" aria-pressed="${yr}">Jahr</button></div><span class="break"></span>` : ''}
     <button class="btn" id="m-prev" aria-label="${yr ? 'Vorheriges Jahr' : 'Vorheriger Monat'}">‹</button>
-    <h1>${esc(monthName(state.month))}</h1>
+    <button class="btn picker" id="m-pick" data-year="${withYear ? 1 : 0}" aria-haspopup="dialog" aria-label="Zeitraum wählen: ${esc(monthName(state.month))}"><span>${esc(monthName(state.month))}</span><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button>
     <button class="btn" id="m-next" aria-label="${yr ? 'Nächstes Jahr' : 'Nächster Monat'}">›</button>
     <button class="btn ghost" id="m-now">Heute</button>
     <span class="spacer"></span>
@@ -86,13 +85,32 @@ function monthToolbar(withAccount = true, withYear = false) {
       `<option value="${a.id}" ${String(a.id) === String(state.accountId) ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>` : ''}
   </div>`;
 }
+
+// Zeitraum-Auswahl: Monate eines Jahres oder das ganze Jahr
+function periodPicker(withYear, rerender) {
+  let y = Number((state.month || ymNow()).slice(0, 4));
+  const now = ymNow(), curY = Number(now.slice(0, 4));
+  const draw = () => {
+    const sel = state.month, yrSel = isYear(sel) && Number(sel) === y;
+    const mnames = Array.from({ length: 12 }, (_, i) => new Date(2000, i, 1).toLocaleDateString('de-DE', { month: 'short' }).replace('.', ''));
+    const d = openDialog(`<div class="pp"><div class="pp-year"><button type="button" class="btn" id="pp-py" aria-label="Vorjahr">‹</button><b id="pp-y">${y}</b><button type="button" class="btn" id="pp-ny" aria-label="Nächstes Jahr">›</button></div>
+      <div class="pp-grid" role="group" aria-label="Monat in ${y}">${mnames.map((n, i) => { const ym = `${y}-${String(i + 1).padStart(2, '0')}`;
+        return `<button type="button" class="pp-m ${sel === ym ? 'on' : ''} ${ym === now ? 'cur' : ''}" data-ym="${ym}" aria-pressed="${sel === ym}">${n}</button>`; }).join('')}</div>
+      ${withYear ? `<button type="button" class="btn pp-all ${yrSel ? 'on' : ''}" data-ym="${y}" aria-pressed="${yrSel}">Ganzes Jahr ${y}</button>` : ''}
+      <div class="actions"><button type="button" class="btn ghost" id="pp-now">Heute</button><button type="button" class="btn" id="pp-close">Schließen</button></div></div>`);
+    $('#pp-py', d).onclick = () => { y--; draw(); };
+    $('#pp-ny', d).onclick = () => { y++; draw(); };
+    $('#pp-close', d).onclick = closeDialog;
+    $('#pp-now', d).onclick = () => { state.month = now; closeDialog(); rerender(); };
+    $$('[data-ym]', d).forEach(b => b.onclick = () => { state.month = b.dataset.ym; closeDialog(); rerender(); });
+  };
+  draw();
+}
 function wireToolbar(rerender) {
   $('#m-prev').onclick = () => { state.month = shiftYm(state.month, -1); rerender(); };
   $('#m-next').onclick = () => { state.month = shiftYm(state.month, 1); rerender(); };
   $('#m-now').onclick = () => { state.month = isYear(state.month) ? ymNow().slice(0, 4) : ymNow(); rerender(); };
-  const pm = $('#p-month'), py = $('#p-year');
-  if (pm) pm.onclick = () => { if (isYear(state.month)) { const y = state.month; state.month = y === ymNow().slice(0, 4) ? ymNow() : `${y}-12`; rerender(); } };
-  if (py) py.onclick = () => { if (!isYear(state.month)) { state.month = state.month.slice(0, 4); rerender(); } };
+  $('#m-pick').onclick = () => periodPicker($('#m-pick').dataset.year === '1', rerender);
   const f = $('#acc-filter');
   if (f) f.onchange = () => { state.accountId = f.value; rerender(); };
 }
@@ -257,7 +275,12 @@ async function viewOverview() {
   });
 }
 
-const txFilter = { q: '', category_id: '', month: null, all: false };
+const txFilter = { q: '', category_id: '', month: null, all: false, sort: 'date', dir: 'desc' };
+const sortTh = (key, label, cls = '') => {
+  const on = txFilter.sort === key;
+  return `<th class="${cls}" aria-sort="${on ? (txFilter.dir === 'asc' ? 'ascending' : 'descending') : 'none'}"><button type="button" class="th-sort ${on ? 'on' : ''}" data-sort="${key}">${label}<span class="arr" aria-hidden="true">${on ? (txFilter.dir === 'asc' ? '▲' : '▼') : '↕'}</span></button></th>`;
+};
+
 async function viewTransactions(params) {
   if (params.get('month')) { state.month = params.get('month'); txFilter.all = false; }
   if (params.has('category_id')) txFilter.category_id = params.get('category_id');
@@ -275,17 +298,18 @@ async function viewTransactions(params) {
       <input type="search" id="f-q" placeholder="Suchen (Empfänger, Verwendungszweck)…" value="${esc(txFilter.q)}" class="grow-in">
       <select id="f-cat"><option value="">Alle Kategorien</option><option value="none" ${txFilter.category_id === 'none' ? 'selected' : ''}>Ohne Kategorie</option>${catOptions(txFilter.category_id)}</select>
       <label style="margin:0;display:flex;gap:.4rem;align-items:center"><input type="checkbox" id="f-all" ${txFilter.all ? 'checked' : ''} style="width:auto;margin:0"> alle Monate</label>
+      <select id="f-sort" class="sort-mobile" aria-label="Sortierung">${[['date|desc', 'Datum · neueste zuerst'], ['date|asc', 'Datum · älteste zuerst'], ['amount|asc', 'Betrag · Ausgaben zuerst'], ['amount|desc', 'Betrag · Einnahmen zuerst']].map(([v, l]) => `<option value="${v}" ${v === txFilter.sort + '|' + txFilter.dir ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <span class="spacer"></span><span id="tx-sum" class="muted"></span>
       <button class="btn danger" id="tx-del" disabled title="Alle Umsätze löschen, die zu den aktuellen Filtern passen">Gefilterte löschen</button>
     </div>
-    <div class="card" style="padding:.4rem .6rem"><div class="table-wrap"><table><thead><tr><th>Datum</th><th>Empfänger / Zweck</th><th>Konto</th><th>Kategorie</th><th class="num">Betrag</th></tr></thead><tbody id="tx-body"></tbody></table></div>
+    <div class="card" style="padding:.4rem .6rem"><div class="table-wrap"><table><thead><tr>${sortTh('date', 'Datum')}<th>Empfänger / Zweck</th><th>Konto</th><th>Kategorie</th>${sortTh('amount', 'Betrag', 'num')}</tr></thead><tbody id="tx-body"></tbody></table></div>
     <div class="row" style="justify-content:center;padding:.6rem"><button class="btn" id="more">Mehr laden</button></div></div>`;
   wireToolbar(() => viewTransactions(new URLSearchParams()));
   let offset = 0, lastTotal = { n: 0, sum: 0 };
   const body = $('#tx-body');
   async function load(reset) {
     if (reset) { offset = 0; body.innerHTML = ''; }
-    const p = base(); p.set('limit', 100); p.set('offset', offset);
+    const p = base(); p.set('limit', 100); p.set('offset', offset); p.set('sort', txFilter.sort); p.set('dir', txFilter.dir);
     const d = await api('/transactions?' + p);
     $('#tx-sum').textContent = `${d.total} Umsätze · Summe ${eur(d.sum_cents)}`;
     lastTotal = { n: d.total, sum: d.sum_cents }; $('#tx-del').disabled = !d.total;
@@ -322,6 +346,16 @@ async function viewTransactions(params) {
   };
   let t; $('#f-q').oninput = e => { clearTimeout(t); t = setTimeout(() => { txFilter.q = e.target.value; load(true); }, 250); };
   $('#f-cat').onchange = e => { txFilter.category_id = e.target.value; load(true); };
+  const syncSort = () => {
+    $$('.th-sort', v).forEach(b => { const on = b.dataset.sort === txFilter.sort; b.classList.toggle('on', on);
+      b.querySelector('.arr').textContent = on ? (txFilter.dir === 'asc' ? '▲' : '▼') : '↕'; b.parentElement.setAttribute('aria-sort', on ? (txFilter.dir === 'asc' ? 'ascending' : 'descending') : 'none'); });
+    $('#f-sort').value = txFilter.sort + '|' + txFilter.dir;
+  };
+  $$('.th-sort', v).forEach(b => b.onclick = () => {
+    txFilter.dir = txFilter.sort === b.dataset.sort ? (txFilter.dir === 'asc' ? 'desc' : 'asc') : (b.dataset.sort === 'date' ? 'desc' : 'asc');
+    txFilter.sort = b.dataset.sort; syncSort(); load(true);
+  });
+  $('#f-sort').onchange = e => { [txFilter.sort, txFilter.dir] = e.target.value.split('|'); syncSort(); load(true); };
   $('#f-all').onchange = e => { txFilter.all = e.target.checked; load(true); };
   body.addEventListener('change', e => { if (e.target.classList.contains('tx-cat')) askRule(e.target); });
   await load(true);
