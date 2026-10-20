@@ -36,6 +36,13 @@ TREE: dict[str, tuple[str, str, list[str]]] = {
         "Restaurants / Cafes / Bars", "Kino / Kunst / Kultur", "Sport / Fitness"]),
     "Reise": ("expense", "#2f8fd1", [
         "Hotel / Unterkunft", "Reisekosten (Flug / Bahn / Schiff)", "Mietwagen", "Sonstige Ausgaben Reise"]),
+    "Bildung und Beruf": ("expense", "#7f8c4a", [
+        "Weiterbildung", "Dienstreise / Spesen", "Sonstige Ausgaben Bildung und Beruf"]),
+    "Gesundheit": ("expense", "#47b39b", [
+        "Apotheke / Medikamente", "Arztbehandlung", "Brille / Kontaktlinsen", "Sonstige Ausgaben Gesundheit"]),
+    "Kinder": ("expense", "#d8738f", [
+        "Kinderbetreuung", "Schulgeld", "Schulausflug", "Kinderbekleidung", "Spielwaren", "Taschengeld",
+        "Freizeitaktivitäten Kinder", "Pflegeprodukte Kinder", "Unterhaltszahlungen", "Sonstige Ausgaben Kinder"]),
     "Bank": ("expense", "#a65e3a", ["Bankentgelte"]),
     "Sparen und Anlegen": ("transfer", "#3f8f5f", ["Geldanlage", "Altersvorsorge", "Bausparen"]),
     "Unkategorisierte Ausgaben": ("expense", "#9aa0a6", [
@@ -60,6 +67,7 @@ RENAMES: dict[str, tuple[str, str | None]] = {
     "Gebühren & Steuern": ("Abgaben / Gebühren", "Unkategorisierte Ausgaben"),
     "Sonstiges": ("Unkategorisierte Ausgaben", None),
     "Sparen & Investieren": ("Sparen und Anlegen", None),
+    "Bildung": ("Bildung und Beruf", None),
 }
 
 # Standardregeln (Muster) auf Unterkategorien verteilen
@@ -84,6 +92,12 @@ MOVE_RULES: dict[str, list[str]] = {
     "Hygieneartikel / Reinigungsmittel": ["re:\\bdm\\b", "dm-drogerie", "rossmann"],
     "Bücher / Musik / DVDs": ["thalia"],
     "Möbel / Wohnaccessoires": ["ikea"],
+    "Weiterbildung": ["udemy", "coursera", "volkshochschule", "re:\\bvhs\\b"],
+    "Schulgeld": ["schulgeld"],
+    "Kinderbetreuung": ["kita"],
+    "Apotheke / Medikamente": ["apotheke", "docmorris"],
+    "Arztbehandlung": ["arzt", "zahnarzt", "praxis", "physiotherap", "klinik", "krankenhaus", "labor"],
+    "Brille / Kontaktlinsen": ["optiker", "fielmann"],
     "Renovierung / Instandhaltung": ["obi ", "bauhaus", "hornbach"],
 }
 
@@ -94,6 +108,9 @@ NEW_RULES: dict[str, tuple[str, list[str]]] = {
     "Lebens- / Rentenversicherung": ("out", ["lebensversicherung", "rentenversicherung"]),
     "Berufsunfähigkeitsversicherung": ("out", ["berufsunfähigkeit"]),
     "Post": ("out", ["deutsche post", "re:\\bdhl\\b"]),
+    "Spielwaren": ("out", ["spielwaren", "smyths", "mytoys", "re:\\blego\\b"]),
+    "Schulausflug": ("out", ["klassenfahrt", "schulausflug"]),
+    "Unterhaltszahlungen": ("out", ["re:\\bunterhalt\\b"]),
     "Frisör / Wellness / Schönheitspflege": ("out", ["friseur", "frisör", "barber"]),
 }
 
@@ -114,25 +131,26 @@ def _ensure(conn: sqlite3.Connection, name: str, kind: str, color: str, parent_i
                         (name, kind, color, parent_id)).lastrowid
 
 
-def apply_template(conn: sqlite3.Connection) -> dict:
-    """Wendet die Vorlage an. Rückgabe: Anzahl umbenannt / neu angelegt."""
+def apply_template(conn: sqlite3.Connection, only: set[str] | None = None) -> dict:
+    """Wendet die Vorlage an (oder nur die Oberkategorien in `only`). Rückgabe: Anzahl umbenannt / neu angelegt."""
     renamed = created = 0
     # 1. Standardkategorien umbenennen (nur, wenn der neue Name noch frei ist)
     for old, (new, _parent) in RENAMES.items():
-        if old == new:
+        if old == new or (only is not None and new not in only and _parent not in only):
             continue
         if _cat(conn, old) and not _cat(conn, new):
             conn.execute("UPDATE categories SET name=? WHERE name=?", (new, old))
             renamed += 1
     # 2. Oberkategorien sicherstellen
     top_ids: dict[str, int] = {}
-    for top, (kind, color, _subs) in TREE.items():
+    tree = {k: v for k, v in TREE.items() if only is None or k in only}
+    for top, (kind, color, _subs) in tree.items():
         existed = _cat(conn, top) is not None
         top_ids[top] = _ensure(conn, top, kind, color, None)
         created += 0 if existed else 1
     # 3. Unterkategorien sicherstellen / zuordnen
     new_subs: list[str] = []
-    for top, (kind, color, subs) in TREE.items():
+    for top, (kind, color, subs) in tree.items():
         for s in subs:
             existed = _cat(conn, s) is not None
             _ensure(conn, s, kind, color, top_ids[top])
@@ -140,9 +158,10 @@ def apply_template(conn: sqlite3.Connection) -> dict:
                 created += 1
                 new_subs.append(s)
     # 4. Regeln: Standardregeln auf Unterkategorien verteilen, neue ergänzen
+    in_scope = {s for _k, _c, subs in tree.values() for s in subs}
     for sub, patterns in MOVE_RULES.items():
         row = _cat(conn, sub)
-        if not row:
+        if not row or sub not in in_scope:
             continue
         for p in patterns:
             conn.execute("UPDATE rules SET category_id=? WHERE source='default' AND pattern=?", (row["id"], p))
@@ -182,3 +201,17 @@ def retire_category(conn: sqlite3.Connection) -> bool:
     conn.execute("DELETE FROM budgets WHERE category_id=?", (row["id"],))
     conn.execute("DELETE FROM categories WHERE id=?", (row["id"],))
     return True
+
+
+# Spätere Ergänzungen der Vorlage: werden beim Start einmalig auch in bestehende Datenbanken eingetragen,
+# in denen die Vorlage schon angewendet wurde (Ober-/Unterkategorien, die du gelöscht hast, kommen nicht zurück).
+TREE_V2_TOPS = {"Bildung und Beruf", "Gesundheit", "Kinder"}
+
+
+def migrate_template(conn: sqlite3.Connection) -> None:
+    from .db import get_setting, set_setting
+    if get_setting(conn, "tree_version", "1") >= "2":
+        return
+    if _cat(conn, "Lebenshaltung"):                       # Vorlage wurde bereits angewendet
+        apply_template(conn, only=TREE_V2_TOPS)
+    set_setting(conn, "tree_version", "2")

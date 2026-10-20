@@ -99,7 +99,7 @@ class StoreAndCategorizeTests(unittest.TestCase):
             self.assertEqual(cat("ARAL%"), "Tanken")
             self.assertEqual(cat("Booking%"), "Hotel / Unterkunft")
             self.assertEqual(cat("McFit%"), "Sport / Fitness")
-            self.assertEqual(cat("Apotheke%"), "Gesundheit")
+            self.assertEqual(cat("Apotheke%"), "Apotheke / Medikamente")
             self.assertEqual(cat("Geldautomat%"), "Bargeldauszahlung")
             # Steuererstattung (Eingang) darf nicht als Ausgabe "Gebühren & Steuern" enden
             r = conn.execute("SELECT c.kind FROM transactions t JOIN categories c ON c.id=t.category_id WHERE t.payee LIKE 'Finanzamt%'").fetchone()
@@ -125,7 +125,7 @@ class StoreAndCategorizeTests(unittest.TestCase):
             cat = lambda p, a=-1000: conn.execute("SELECT name FROM categories WHERE id=?", (cz.categorize(p, "", "", a),)).fetchone()[0]
             self.assertEqual(cat("Foo2 GmbH"), "Unkategorisierte Ausgaben")           # "o2" darf nicht in "Foo2" matchen
             self.assertEqual(cat("O2 Telefonica"), "Telefon / Internet / Fernsehen")
-            self.assertEqual(cat("Praxis Dr. Meier"), "Gesundheit")
+            self.assertEqual(cat("Praxis Dr. Meier"), "Arztbehandlung")
             self.assertEqual(cat("Überweisung an Freund"), "Unkategorisierte Ausgaben")
             self.assertEqual(cat("Unbekannt", 5000), "Sonstige Einnahmen")
 
@@ -138,18 +138,18 @@ class StoreAndCategorizeTests(unittest.TestCase):
         cats = {x["name"]: x["id"] for x in c.get("/api/categories").json()["categories"]}
         tx = next(t for t in c.get("/api/transactions?q=zalando&limit=50").json()["transactions"])
         self.assertEqual(tx["category"], "Shopping")
-        r = c.patch(f"/api/transactions/{tx['id']}", json={"category_id": cats["Bildung"]})
+        r = c.patch(f"/api/transactions/{tx['id']}", json={"category_id": cats["Bildung und Beruf"]})
         self.assertEqual(r.status_code, 200)
         # Neukategorisierung darf manuelle Zuordnung nicht überschreiben
         with session() as conn:
             apply_rules(conn)
         again = c.get("/api/transactions?q=zalando&limit=50").json()["transactions"]
-        self.assertEqual([t for t in again if t["id"] == tx["id"]][0]["category"], "Bildung")
+        self.assertEqual([t for t in again if t["id"] == tx["id"]][0]["category"], "Bildung und Beruf")
         # Regel aus Umsatz anlegen -> wirkt auf alle anderen Zalando-Umsätze
-        r = c.patch(f"/api/transactions/{tx['id']}", json={"category_id": cats["Bildung"], "create_rule": True, "rule_pattern": "zalando"})
+        r = c.patch(f"/api/transactions/{tx['id']}", json={"category_id": cats["Bildung und Beruf"], "create_rule": True, "rule_pattern": "zalando"})
         self.assertGreater(r.json()["recategorized"], 0)
         others = [t for t in c.get("/api/transactions?q=zalando&limit=50").json()["transactions"]]
-        self.assertTrue(all(t["category"] == "Bildung" for t in others))
+        self.assertTrue(all(t["category"] == "Bildung und Beruf" for t in others))
 
 
 class DuplicateTests(unittest.TestCase):
@@ -231,6 +231,10 @@ class SubcategoryTests(unittest.TestCase):
             self.assertEqual(par["Tanken"], "Auto und öffentliche Verkehrsmittel")
             self.assertEqual(par["Lohn / Gehalt"], "Einnahmen")
             self.assertEqual(par["Geldanlage"], "Sparen und Anlegen")
+            self.assertEqual(par["Arztbehandlung"], "Gesundheit")
+            self.assertEqual(par["Taschengeld"], "Kinder")
+            self.assertEqual(par["Dienstreise / Spesen"], "Bildung und Beruf")
+            self.assertIsNone(par["Kinder"])
             self.assertIsNone(par["Wohnen"])
             self.assertEqual(conn.execute("SELECT kind FROM categories WHERE name='Einnahmen'").fetchone()[0], "income")
             self.assertEqual(conn.execute("SELECT kind FROM categories WHERE name='Geldanlage'").fetchone()[0], "transfer")
@@ -251,6 +255,23 @@ class SubcategoryTests(unittest.TestCase):
                          (acc, "2026-10-01", "X", -100, sub, "m1"))
             self.assertTrue(retire_category(conn))
             self.assertEqual(conn.execute("SELECT category_id FROM transactions").fetchone()[0], top)
+
+    def test_v2_additions_reach_existing_template_installs(self):
+        from app.category_tree import migrate_template
+        from app.db import set_setting
+        with session() as conn:
+            for n in ("Kinder", "Taschengeld"):
+                conn.execute("UPDATE categories SET parent_id=NULL WHERE name=?", (n,))
+            kid = conn.execute("SELECT id FROM categories WHERE name='Taschengeld'").fetchone()[0]
+            conn.execute("DELETE FROM categories WHERE name='Taschengeld'")
+            conn.execute("DELETE FROM categories WHERE name='Spielwaren'")   # vom Nutzer gelöscht ...
+            set_setting(conn, "tree_version", "1")
+            migrate_template(conn)                                         # ... kommt mit der Migration zurück (einmalig)
+            self.assertIsNotNone(conn.execute("SELECT 1 FROM categories WHERE name='Taschengeld'").fetchone())
+            conn.execute("DELETE FROM categories WHERE name='Spielwaren'")
+            migrate_template(conn)                                         # zweiter Lauf: nichts mehr
+            self.assertIsNone(conn.execute("SELECT 1 FROM categories WHERE name='Spielwaren'").fetchone())
+            _ = kid
 
     def test_migration_of_old_database(self):
         """Alte DB ohne parent_id und mit Alt-Namen: Umsätze bleiben, Kategorien werden einsortiert."""

@@ -109,6 +109,8 @@ def init_db() -> None:
             conn.execute("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL")
         seed_defaults(conn)
         add_extra_rules(conn)
+        from .category_tree import migrate_template
+        migrate_template(conn)
         if get_setting(conn, "migr_retire_sonstige", "") != "1":     # einmalig
             from .category_tree import retire_category
             retire_category(conn)
