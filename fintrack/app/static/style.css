@@ -294,3 +294,9 @@ dialog #map-form .actions { background: var(--card); padding: .6rem 0; margin-to
 .list-item.acc > .icons { align-self: flex-start; }
 .app-icon { width: 32px; height: 32px; border-radius: 8px; flex: none; }
 @media (max-width: 639px) { .app-icon { width: 30px; height: 30px; } }
+@media (max-width: 639px) {
+  .acc-toolbar { flex-wrap: nowrap; gap: .4rem; }
+  .acc-toolbar h1 { display: none; }
+  .acc-toolbar .spacer { display: none; }
+  .acc-toolbar .btn { flex: 1 1 0; min-width: 0; padding-left: .5rem; padding-right: .5rem; white-space: nowrap; }
+}

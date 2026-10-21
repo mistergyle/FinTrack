@@ -454,7 +454,7 @@ const syncAvailable = a => (a.bank === 'comdirect' && state.comdirectApi) || sta
 async function viewAccounts() {
   await loadMeta();
   const v = $('#view');
-  v.innerHTML = `<div class="toolbar"><h1>Konten</h1><span class="spacer"></span><button class="btn" id="dedupe" title="Entfernt doppelte Umsätze, die durch FinTS- plus CSV-Import entstanden sind">Duplikate bereinigen</button><button class="btn primary" id="add-acc">Konto hinzufügen</button></div>
+  v.innerHTML = `<div class="toolbar acc-toolbar"><h1>Konten</h1><span class="spacer"></span><button class="btn" id="dedupe" title="Entfernt doppelte Umsätze, die durch FinTS- plus CSV-Import entstanden sind">Duplikate bereinigen</button><button class="btn primary" id="add-acc">Konto hinzufügen</button></div>
     ${state.fintsEnabled && state.comdirectApi ? '' : `<div class="note"><b>CSV-Import funktioniert sofort.</b> Automatischer Abruf: ${state.comdirectApi ? '' : 'comdirect-API nicht aktiviert (<code>COMDIRECT_CLIENT_ID</code>/<code>COMDIRECT_CLIENT_SECRET</code>). '}${state.fintsEnabled ? '' : 'FinTS nicht aktiviert (<code>FINTS_PRODUCT_ID</code>). '}Siehe README.</div>`}
     <div class="card">${state.accounts.map(a => `<div class="list-item acc">
       <div class="grow"><div class="title">${esc(a.name)} <span class="pill">${esc(a.bank)}</span></div>

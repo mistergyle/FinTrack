@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.4
+
+- Konten (mobil): „Duplikate bereinigen“ und „Konto hinzufügen“ stehen nebeneinander in einer Zeile; die doppelte Überschrift „Konten“ entfällt auf dem Handy.
+
 ## 0.11.3
 
 - App-Icon wieder in der Kopfzeile (rechtsbündig); dient auch als Browser-Tab-Icon.
