@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.3
+
+- App-Icon wieder in der Kopfzeile (rechtsbündig); dient auch als Browser-Tab-Icon.
+
 ## 0.11.2
 
 - Kopfzeile und Menü: der zusätzliche Abstand für die Notch / Statusleiste oben entfällt (im Home-Assistant-Add-on sitzt darüber bereits die App-Leiste).
