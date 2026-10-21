@@ -45,6 +45,7 @@ APP_PASSWORD=... uvicorn app.main:app --port 8000
 - ING: Umsatzanzeige → Export (CSV)
 - comdirect: Umsätze → Download → CSV
 - Unter *Konten* ein Konto anlegen und die Datei importieren. Das Format wird erkannt, Überschneidungen werden als Duplikate ignoriert.
+- **Andere Banken:** Kontotyp „Andere“ wählen und eine beliebige CSV-Datei importieren. Beim ersten Mal ordnest du die Spalten zu (Datum, Betrag bzw. Soll/Haben, Empfänger, Verwendungszweck …; Trennzeichen, Zeichensatz und Datumsformat werden vorgeschlagen). Die Zuordnung wird am Konto gespeichert und bei späteren Dateien mit denselben Spaltenüberschriften automatisch angewendet; änderbar über „Spalten-Zuordnung“.
 
 **2. comdirect REST-API (optional, empfohlen für comdirect)**
 - Im comdirect-Persönlichen-Bereich für die API registrieren (comdirect.de → Hilfe/Kontakt → Zugänge & API) und dort `client_id` / `client_secret` erzeugen. Die Nutzung ist laut comdirect kostenlos, es gibt keine Testumgebung.
@@ -73,7 +74,7 @@ python -m unittest tests.test_app
 Beispieldateien (erfundene Daten) liegen in `fintrack/tests/samples/`.
 
 ## Aufbau
-`fintrack/app/` – `main.py` (API), `importers.py` (CSV), `categorizer.py` (Regeln), `analysis.py` (Budgets/Fixkosten), `fints_sync.py` (FinTS), `static/` (Oberfläche ohne externe Abhängigkeiten).
+`fintrack/app/` – `main.py` (API), `importers.py` (ING/comdirect-CSV), `csv_generic.py` (CSV mit Spalten-Zuordnung), `categorizer.py` (Regeln), `analysis.py` (Budgets/Fixkosten), `fints_sync.py` (FinTS), `static/` (Oberfläche ohne externe Abhängigkeiten).
 
 ## Lizenz
 [MIT](LICENSE). Die Software wird ohne Gewähr bereitgestellt – das gilt besonders für die nur gegen Attrappen getesteten Bankanbindungen (FinTS, comdirect-API).

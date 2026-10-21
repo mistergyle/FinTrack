@@ -24,6 +24,8 @@ Alle Werte sind optional. Änderungen werden nach einem Neustart des Add-ons wir
 
 1. **CSV-Import (funktioniert immer):** ING: Umsatzanzeige → Export (CSV). comdirect: Umsätze → Download → CSV.
    In FinTrack unter *Konten* ein Konto anlegen und die Datei importieren. Doppelte Umsätze werden erkannt.
+   Andere Banken: Kontotyp *Andere* wählen, beliebige CSV importieren und einmalig die Spalten zuordnen –
+   die Zuordnung wird gespeichert und bei künftigen Dateien automatisch erkannt (änderbar über *Spalten-Zuordnung*).
 2. **comdirect-API (optional):** `comdirect_client_id` und `comdirect_client_secret` eintragen, beim Konto die
    Zugangsnummer hinterlegen, dann *Per comdirect-API abrufen*. PIN und TAN-Freigabe werden bei jedem Abruf
    abgefragt und nie gespeichert. **Mehrfach falsche TANs sperren den Online-Zugang.**
