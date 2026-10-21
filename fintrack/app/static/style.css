@@ -120,7 +120,7 @@ dialog .actions { display: flex; gap: .5rem; justify-content: flex-end; margin-t
 
 @media (max-width: 640px) {
   body { font-size: 16px; padding-bottom: env(safe-area-inset-bottom); -webkit-text-size-adjust: 100%; }
-  .top { flex-wrap: nowrap; gap: .4rem; padding: .35rem .6rem; padding-top: calc(.35rem + env(safe-area-inset-top));
+  .top { flex-wrap: nowrap; gap: .4rem; padding: .35rem .6rem;
     padding-left: calc(.6rem + env(safe-area-inset-left)); padding-right: calc(.6rem + env(safe-area-inset-right)); }
   .burger { display: inline-flex; flex-direction: column; justify-content: center; gap: 5px; width: 44px; height: 44px;
     background: transparent; border: 0; border-radius: 10px; padding: 0 11px; cursor: pointer; flex: none; }
@@ -133,7 +133,7 @@ dialog .actions { display: flex; gap: .5rem; justify-content: flex-end; margin-t
   .page-title { display: block; font-size: 1.1rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .top > #logout { display: none; }
   nav { position: fixed; z-index: 30; top: 0; bottom: 0; left: 0; width: min(300px, 82vw); flex-direction: column; flex-wrap: nowrap;
-    gap: .2rem; background: var(--card); padding: calc(.8rem + env(safe-area-inset-top)) .8rem calc(.8rem + env(safe-area-inset-bottom));
+    gap: .2rem; background: var(--card); padding: .8rem .8rem calc(.8rem + env(safe-area-inset-bottom));
     border-right: 1px solid var(--line); box-shadow: 0 0 40px rgba(0, 0, 0, .3); overflow-y: auto;
     transform: translateX(-105%); visibility: hidden; transition: transform .22s ease, visibility 0s .22s; }
   .menu-open nav { transform: none; visibility: visible; transition: transform .22s ease; }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.2
+
+- Kopfzeile und Menü: der zusätzliche Abstand für die Notch / Statusleiste oben entfällt (im Home-Assistant-Add-on sitzt darüber bereits die App-Leiste).
+
 ## 0.11.1
 
 - Konten: „Bearbeiten“ und „Löschen“ sind jetzt – wie bei den Kategorien – platzsparende Icons (✎ und rotes Papierkorb-Icon).
