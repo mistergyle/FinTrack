@@ -5,6 +5,26 @@ Alle Daten liegen in einer lokalen SQLite-Datei – keine Cloud, keine Weitergab
 
 Läuft als **Home-Assistant-Add-on** (empfohlen) oder eigenständig mit Docker.
 
+## Screenshots
+
+Alle Bilder zeigen frei erfundene Beispieldaten (`fintrack/tests/samples/`).
+
+![Übersicht](docs/screenshots/desktop-uebersicht.png)
+
+| Umsätze | Budgets |
+|---|---|
+| ![Umsätze](docs/screenshots/desktop-umsaetze.png) | ![Budgets](docs/screenshots/desktop-budgets.png) |
+| **Fixkosten** | **Konten** |
+| ![Fixkosten](docs/screenshots/desktop-fixkosten.png) | ![Konten](docs/screenshots/desktop-konten.png) |
+
+Mobil optimiert (Burger-Menü, Datepicker für Monat oder ganzes Jahr, Konten als Tags):
+
+<p>
+<img src="docs/screenshots/mobil-uebersicht.png" width="260" alt="Übersicht mobil">
+<img src="docs/screenshots/mobil-umsaetze.png" width="260" alt="Umsätze mobil">
+<img src="docs/screenshots/mobil-menue.png" width="260" alt="Menü mobil">
+</p>
+
 ## Installation als Home-Assistant-Add-on
 
 1. **Einstellungen → Add-ons → Add-on-Store → ⋮ (oben rechts) → Repositories** und
