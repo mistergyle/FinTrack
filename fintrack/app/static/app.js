@@ -81,9 +81,7 @@ function monthToolbar(withAccount = true, withYear = false) {
     <button class="btn" id="m-next" aria-label="${yr ? 'Nächstes Jahr' : 'Nächster Monat'}">›</button>
     <button class="btn ghost" id="m-now">Heute</button>
     <span class="spacer"></span>
-    ${withAccount ? `<select id="acc-filter" aria-label="Konto"><option value="">Alle Konten</option>${state.accounts.map(a =>
-      `<option value="${a.id}" ${String(a.id) === String(state.accountId) ? 'selected' : ''}>${esc(a.name)}</option>`).join('')}</select>` : ''}
-  </div>`;
+  </div>${withAccount && state.accounts.length > 1 ? accountTags() : ''}`;
 }
 
 // Zeitraum-Auswahl: Monate eines Jahres oder das ganze Jahr
@@ -106,13 +104,31 @@ function periodPicker(withYear, rerender) {
   };
   draw();
 }
+// Konten als wählbare Tags (Mehrfachauswahl; keine Auswahl = alle Konten)
+const selAccIds = () => String(state.accountId || '').split(',').filter(Boolean);
+function accountTags() {
+  const sel = selAccIds();
+  return `<div class="acc-tags" role="group" aria-label="Konten filtern"><button type="button" class="tag ${sel.length ? '' : 'on'}" data-acc="" aria-pressed="${!sel.length}">Alle Konten</button>${state.accounts.map(a =>
+    `<button type="button" class="tag ${sel.includes(String(a.id)) ? 'on' : ''}" data-acc="${a.id}" aria-pressed="${sel.includes(String(a.id))}">${esc(a.name)}</button>`).join('')}</div>`;
+}
+function accountLabel() {
+  return selAccIds().map(i => state.accounts.find(a => String(a.id) === i)?.name).filter(Boolean).join(', ');
+}
 function wireToolbar(rerender) {
   $('#m-prev').onclick = () => { state.month = shiftYm(state.month, -1); rerender(); };
   $('#m-next').onclick = () => { state.month = shiftYm(state.month, 1); rerender(); };
   $('#m-now').onclick = () => { state.month = isYear(state.month) ? ymNow().slice(0, 4) : ymNow(); rerender(); };
   $('#m-pick').onclick = () => periodPicker($('#m-pick').dataset.year === '1', rerender);
-  const f = $('#acc-filter');
-  if (f) f.onchange = () => { state.accountId = f.value; rerender(); };
+  $$('.acc-tags .tag').forEach(b => b.onclick = () => {
+    const id = b.dataset.acc;
+    if (!id) state.accountId = '';
+    else {
+      const s = selAccIds(), i = s.indexOf(id);
+      if (i >= 0) s.splice(i, 1); else s.push(id);
+      state.accountId = s.length >= state.accounts.length ? '' : s.join(',');   // alle gewählt = kein Filter
+    }
+    rerender();
+  });
 }
 
 // ---------------------------------------------------------------- Diagramme (reines SVG, keine Abhängigkeiten)
@@ -325,7 +341,7 @@ async function viewTransactions(params) {
   $('#more').onclick = () => load(false);
   $('#tx-del').onclick = () => {
     const parts = [txFilter.all ? 'alle Monate' : monthName(state.month)];
-    if (state.accountId) parts.push('Konto: ' + (state.accounts.find(a => String(a.id) === String(state.accountId))?.name || ''));
+    if (state.accountId) parts.push('Konto: ' + accountLabel());
     if (txFilter.category_id) parts.push('Kategorie: ' + (txFilter.category_id === 'none' ? 'ohne Kategorie' : (state.cats.find(c => String(c.id) === String(txFilter.category_id))?.name || '')));
     if (txFilter.q) parts.push(`Suche: „${txFilter.q}“`);
     const broad = txFilter.all && !state.accountId && !txFilter.category_id && !txFilter.q;

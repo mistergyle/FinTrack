@@ -373,7 +373,8 @@ def _tx_filter(p) -> tuple[str, list]:
         s, e = analysis.month_bounds(p["month"])
         where += ["t.booking_date >= ?", "t.booking_date <= ?"]; args += [s, e]
     if p.get("account_id"):
-        where.append("t.account_id=?"); args.append(int(p["account_id"]))
+        sql, ids = analysis._acc_sql(p["account_id"])
+        where.append(sql[5:]); args += ids
     if p.get("category_id") == "none":
         where.append("t.category_id IS NULL")
     elif p.get("category_id"):
@@ -620,7 +621,7 @@ async def api_overview(request: Request):
         return err(str(e))
     acc = request.query_params.get("account_id")
     with session() as conn:
-        data = analysis.overview(conn, month, account_id=int(acc) if acc else None)
+        data = analysis.overview(conn, month, account_id=acc or None)
         if data["is_current"] and not data["is_year"]:
             data["upcoming"] = analysis.upcoming_this_month(conn)
         return JSONResponse(data)
@@ -634,7 +635,7 @@ async def api_monthly(request: Request):
             return err("end_month muss YYYY-MM sein.")
         return JSONResponse({"months": analysis.monthly_series(
             conn, int(request.query_params.get("months", 12)), end_month=end or None,
-            account_id=int(acc) if acc else None)})
+            account_id=acc or None)})
 
 
 async def api_recurring(request: Request):

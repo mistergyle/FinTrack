@@ -23,20 +23,34 @@ def shift_month(month: str, delta: int) -> str:
     return f"{idx // 12:04d}-{idx % 12 + 1:02d}"
 
 
-def _spend_by_category(conn: sqlite3.Connection, start: str, end: str, account_id: int | None = None):
+def _ids(account_id) -> list[int]:
+    """Kontofilter: None/''/0 = alle, sonst eine ID, eine Liste oder „1,2,3“."""
+    if not account_id:
+        return []
+    if isinstance(account_id, (list, tuple, set)):
+        return [int(x) for x in account_id if x]
+    return [int(x) for x in str(account_id).split(",") if x.strip()]
+
+
+def _acc_sql(account_id) -> tuple[str, list[int]]:
+    ids = _ids(account_id)
+    return (f" AND t.account_id IN ({','.join('?' * len(ids))})", ids) if ids else ("", [])
+
+
+def _spend_by_category(conn: sqlite3.Connection, start: str, end: str, account_id: int | list[int] | str | None = None):
     q = ("SELECT c.id, c.name, c.kind, c.color, SUM(t.amount_cents) AS s "
          "FROM transactions t JOIN categories c ON c.id=t.category_id "
          "WHERE t.booking_date BETWEEN ? AND ?")
     args: list = [start, end]
-    if account_id:
-        q += " AND t.account_id=?"
-        args.append(account_id)
+    sql, ids = _acc_sql(account_id)
+    q += sql
+    args += ids
     q += " GROUP BY c.id"
     return conn.execute(q, args).fetchall()
 
 
 def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
-             account_id: int | None = None) -> dict:
+             account_id: int | list[int] | str | None = None) -> dict:
     today = today or date.today()
     start, end = month_bounds(month)
     rows = _spend_by_category(conn, start, end, account_id)
@@ -130,9 +144,9 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
          "JOIN categories c ON c.id=t.category_id WHERE c.kind='expense' "
          "AND t.booking_date BETWEEN ? AND ?")
     args: list = [start, end]
-    if account_id:
-        q += " AND t.account_id=?"
-        args.append(account_id)
+    sql, ids = _acc_sql(account_id)
+    q += sql
+    args += ids
     q += " GROUP BY t.booking_date"
     per_day = {r["d"]: r["s"] for r in conn.execute(q, args)}
     cumulative, run = [], 0
@@ -146,9 +160,9 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
          "FROM transactions t JOIN categories c ON c.id=t.category_id WHERE c.kind='expense' "
          "AND t.booking_date BETWEEN ? AND ?")
     args = [start, end]
-    if account_id:
-        q += " AND t.account_id=?"
-        args.append(account_id)
+    sql, ids = _acc_sql(account_id)
+    q += sql
+    args += ids
     q += " GROUP BY p HAVING s > 0 ORDER BY s DESC LIMIT 8"
     top = [{"payee": r["p"], "spent_cents": r["s"], "count": r["n"]} for r in conn.execute(q, args)]
 
@@ -164,7 +178,7 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
 
 
 def monthly_series(conn: sqlite3.Connection, months: int = 12, end_month: str | None = None,
-                   account_id: int | None = None) -> list[dict]:
+                   account_id: int | list[int] | str | None = None) -> list[dict]:
     end_month = end_month or date.today().strftime("%Y-%m")
     out = []
     for i in range(months - 1, -1, -1):

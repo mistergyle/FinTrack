@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.0
+
+- Kontofilter (Übersicht und Umsätze): Statt des Dropdowns werden die Konten als antippbare Tags angezeigt. Mehrere Konten lassen sich gleichzeitig auswählen („Alle Konten“ = kein Filter). Auch „Gefilterte löschen“ und die Auswertungen berücksichtigen die Mehrfachauswahl.
+
 ## 0.10.0
 
 - Neuer Kontotyp „Andere“ mit beliebigem CSV-Import: Beim ersten Import öffnet sich ein Dialog zur Spalten-Zuordnung (Trennzeichen, Zeichensatz, Kopfzeile, Datum, Betrag als eine Spalte oder Soll/Haben, Empfänger, Verwendungszweck, Buchungstext, Valuta, IBAN, Währung) mit Live-Vorschau. Die Zuordnung wird am Konto gespeichert und bei späteren Importen anhand der Spaltenüberschriften automatisch angewendet – auch ohne Kontoauswahl. Über „Spalten-Zuordnung“ am Konto lässt sie sich jederzeit ändern.

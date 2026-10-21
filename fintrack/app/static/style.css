@@ -286,3 +286,8 @@ label.check { display: flex; align-items: center; gap: .4rem; }
 label.check input { width: auto; }
 dialog #map-form select { width: 100%; }
 dialog #map-form .actions { background: var(--card); padding: .6rem 0; margin-top: .6rem; }
+
+/* Konto-Tags */
+.acc-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin: -.2rem 0 .8rem; }
+.tag { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: .3rem .8rem; font: inherit; font-size: .85rem; cursor: pointer; }
+.tag.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }

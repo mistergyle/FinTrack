@@ -536,6 +536,20 @@ class GenericCsvTests(unittest.TestCase):
         self.assertEqual(r.json()["account_id"], acc)
         self.assertTrue([a for a in c.get("/api/accounts").json()["accounts"] if a["id"] == acc][0]["has_mapping"])
 
+    def test_multi_account_filter(self):
+        c = self.c
+        ids = [c.post("/api/accounts", json={"name": n, "bank": "other"}).json()["id"] for n in "ABC"]
+        for i, aid in enumerate(ids):
+            m = {"date": "Date", "payee": "Description", "amount": "Amount", "date_format": "%Y-%m-%d"}
+            csv = f"Date,Description,Amount\n2026-03-0{i+1},Shop{i},-{i+1}.00\n".encode()
+            c.post("/api/import", files={"file": ("x.csv", csv)}, data={"account_id": str(aid), "mapping": json.dumps(m)})
+        n = lambda q: len(c.get("/api/transactions?limit=50" + q).json()["transactions"])
+        self.assertEqual(n(""), 3)
+        self.assertEqual(n(f"&account_id={ids[0]},{ids[2]}"), 2)
+        self.assertEqual(n(f"&account_id={ids[1]}"), 1)
+        o = c.get(f"/api/analysis/overview?month=2026-03&account_id={ids[0]},{ids[1]}").json()
+        self.assertEqual(o["expenses_cents"], 300)
+
     def test_mismatch_and_dot_decimal(self):
         c = self.c
         acc = c.post("/api/accounts", json={"name": "B", "bank": "other"}).json()["id"]
