@@ -5,7 +5,7 @@ kategorisieren, Budgets und Fixkosten auswerten. Alle Daten bleiben auf deinem H
 
 ## Öffnen
 
-Nach dem Start erscheint **FinTrack** in der Seitenleiste (nur für Administratoren). Die Anmeldung
+Nach dem Start erscheint **FinTrack** in der Seitenleiste (für alle Home-Assistant-Benutzer, auch Nicht-Administratoren). Die Anmeldung
 übernimmt Home Assistant, ein zweites Passwort ist nicht nötig.
 
 ## Konfiguration

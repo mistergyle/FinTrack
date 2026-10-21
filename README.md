@@ -80,7 +80,7 @@ APP_PASSWORD=... uvicorn app.main:app --port 8000
 - Hinweis: Dieser Teil wurde nur gegen eine Attrappe getestet, nicht gegen echte Banken. Ob ING/comdirect FinTS für dein Konto freigeben, musst du ausprobieren. Der CSV-Weg bleibt immer als Fallback.
 
 ## Sicherheit
-- **Add-on:** Zugriff über die Seitenleiste ist durch die Home-Assistant-Anmeldung geschützt (nur Administratoren). Direktzugriff über einen freigegebenen Port ist ohne Passwort gesperrt.
+- **Add-on:** Zugriff über die Seitenleiste ist durch die Home-Assistant-Anmeldung geschützt (alle Home-Assistant-Benutzer, auch Nicht-Administratoren; wer FinTrack nur Admins zeigen will, setzt in `fintrack/config.yaml` `panel_admin: true`). Direktzugriff über einen freigegebenen Port ist ohne Passwort gesperrt.
 - **Standalone:** Passwort-Login (Pflicht), signiertes Session-Cookie, Fehlversuch-Sperre, Sicherheits-Header
 - Standardmäßig nur auf `127.0.0.1` veröffentlicht. Für Zugriff von außen: Reverse-Proxy mit HTTPS (Caddy/Traefik/nginx) davor und `COOKIE_SECURE=1` setzen – oder VPN (z. B. WireGuard/Tailscale).
 - Die Datenbank ist **nicht verschlüsselt**; Festplattenverschlüsselung des Servers wird empfohlen.

@@ -1,5 +1,5 @@
 name: FinTrack
-version: "0.12.1"
+version: "0.12.2"
 slug: fintrack
 description: Selbst gehostete Finanzübersicht – Umsätze von ING und comdirect importieren, kategorisieren und auswerten
 url: https://github.com/mistergyle/FinTrack
@@ -14,7 +14,7 @@ ingress: true
 ingress_port: 8000
 panel_icon: mdi:cash-multiple
 panel_title: FinTrack
-panel_admin: true
+panel_admin: false
 watchdog: http://[HOST]:[PORT:8000]/healthz
 # Direktzugriff ist standardmäßig aus. Er funktioniert nur, wenn unten ein Passwort gesetzt ist.
 ports:

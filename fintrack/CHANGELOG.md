@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.2
+
+- Seitenleisten-Eintrag ist nicht mehr auf Administratoren beschränkt (`panel_admin: false`): Auch normale Home-Assistant-Benutzer können FinTrack öffnen. Wer das nicht möchte, setzt `panel_admin: true` in `config.yaml`.
+
 ## 0.12.1
 
 - Budgets: Die Summe einer Hauptkategorie ist jetzt fett hervorgehoben statt in einem Eingabefeld (bearbeitet wird in den Unterkategorien). Ein früher gesetztes eigenes Budget der Hauptkategorie lässt sich über das kleine × entfernen.
