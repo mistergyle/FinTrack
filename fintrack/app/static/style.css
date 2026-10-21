@@ -334,3 +334,12 @@ table.bt .pill { white-space: nowrap; }
 @media (max-width: 640px) { table.bt td.num.bsumtd { display: block; grid-column: 2; grid-row: 1; } table.bt td.bsumtd .bsum { padding-right: .5rem; } }
 .bclr { font: inherit; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 .25rem; font-size: 1rem; line-height: 1; }
 .bclr:hover { color: var(--bad); }
+
+/* Budgets: Unterkategorien farblich von Hauptkategorien abgesetzt */
+table.bt tr.sub { background: color-mix(in srgb, var(--cc, var(--accent)) 7%, var(--card)); }
+table.bt tr.sub > td:first-child { box-shadow: inset 3px 0 0 var(--cc, var(--accent)); }
+table.bt tr:not(.sub) td.nm { font-weight: 600; }
+@media (max-width: 640px) {
+  table.bt tr.sub { box-shadow: inset 3px 0 0 var(--cc, var(--accent)); border-radius: 0 8px 8px 0; margin: .1rem 0; padding-left: 1.1rem; }
+  table.bt tr.sub > td:first-child { box-shadow: none; }
+}

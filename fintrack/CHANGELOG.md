@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.3
+
+- Budgets: Unterkategorien sind farblich abgesetzt – getönter Hintergrund und farbiger Balken links in der Farbe der Hauptkategorie; Hauptkategorien stehen fett.
+
 ## 0.12.2
 
 - Seitenleisten-Eintrag ist nicht mehr auf Administratoren beschränkt (`panel_admin: false`): Auch normale Home-Assistant-Benutzer können FinTrack öffnen. Wer das nicht möchte, setzt `panel_admin: true` in `config.yaml`.
