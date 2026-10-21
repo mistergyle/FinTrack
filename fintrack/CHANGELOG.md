@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.4
+
+- Budgets: Es ist immer nur eine Hauptkategorie aufgeklappt – beim Öffnen einer weiteren schließt sich die vorherige. Beim Start sind alle zugeklappt; nach dem Speichern eines Budgets bleibt die geöffnete Kategorie offen.
+
 ## 0.12.3
 
 - Budgets: Unterkategorien sind farblich abgesetzt – getönter Hintergrund und farbiger Balken links in der Farbe der Hauptkategorie; Hauptkategorien stehen fett.

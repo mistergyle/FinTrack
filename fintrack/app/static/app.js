@@ -258,7 +258,7 @@ async function viewOverview() {
             const w = Math.min(100, Math.max(0, c.spent_cents) / maxSpent * 100);
             const proj = o.is_current && c.budget_cents ? Math.min(100, c.projected_cents / maxSpent * 100) : null;
             const bud = c.budget_cents ? `<small>von ${eur0(c.budget_cents)} · <span class="pill ${c.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten', none: '' }[c.status]}</span></small>` : (c.avg3_cents ? `<small>${o.is_year ? 'Vorjahr' : 'Ø 3 Mon.'} ${eur0(c.avg3_cents)}</small>` : '');
-            const toggle = !child && c.children && c.children.length ? `<button class="chev" type="button" data-toggle="${c.id}" aria-expanded="false" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : (child ? '' : '<span class="chev-gap"></span>');
+            const toggle = !child && c.children && c.children.length ? `<button class="chev" type="button" data-toggle="${c.id}" aria-expanded="${String(budOpen) === String(c.id)}" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : (child ? '' : '<span class="chev-gap"></span>');
             return `<div class="cat-row${child ? ' child' : ''}" data-cat="${c.id}" ${child ? `data-parent="${child}" hidden` : ''} title="Umsätze anzeigen">
               <span class="cat-name">${toggle}<span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}</span>
               <div class="bar"><div class="fill ${c.status === 'none' ? '' : c.status}" style="width:${w}%;${c.status === 'none' ? `background:${esc(c.color)}` : ''}"></div>${proj != null ? `<div class="proj" style="left:${proj}%" title="Prognose ${o.is_year ? 'Jahresende' : 'Monatsende'}: ${eur(c.projected_cents)}"></div>` : ''}</div>
@@ -397,6 +397,7 @@ function askRule(sel) {
   $('#r-rule', d).onclick = () => save(true);
 }
 
+let budOpen = null;   // aktuell aufgeklappte Hauptkategorie (bleibt nach dem Speichern erhalten)
 async function viewBudgets() {
   const v = $('#view');
   if (isYear(state.month)) state.month = state.month === ymNow().slice(0, 4) ? ymNow() : `${state.month}-12`;   // Budgets gibt es nur je Monat
@@ -413,10 +414,10 @@ async function viewBudgets() {
       ${exp.flatMap(t => [[t, false], ...t.children.map(k => [k, true])]).map(([c, child]) => { const s = spent[c.id] || {}; const b = c.budget_cents;
         const hasKids = !child && c.children.length; const eff = hasKids && !b && s.budget_cents ? s.budget_cents : null;
         const open = child && (s.spent_cents || b || (s.avg3_cents || 0));
-        const chev = hasKids ? `<button class="chev" type="button" data-btoggle="${c.id}" aria-expanded="${c.children.some(k => (spent[k.id] || {}).spent_cents || k.budget_cents) ? 'true' : 'false'}" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : '';
+        const chev = hasKids ? `<button class="chev" type="button" data-btoggle="${c.id}" aria-expanded="false" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : '';
         const eb = b || s.budget_cents || 0, sp = s.spent_cents || 0, zero = !sp && !eb && !(s.avg3_cents || 0);
         const meta = `${eur0(sp)}${eb ? ' von ' + eur0(eb) : ''}${s.avg3_cents ? ' · Ø ' + eur0(s.avg3_cents) : ''}`;
-        return `<tr class="${child ? 'sub' : ''}${zero && !child ? ' bz' : ''}" ${child ? `data-bparent="${c.parent_id}" style="--cc:${esc(state.cats.find(x => x.id === c.parent_id)?.color || c.color)}" ${open ? '' : 'hidden'}` : ''}><td class="nm">${chev}<span class="dot" style="background:${esc(c.color)}"></span><span class="nmtxt">${esc(c.name)}${hasKids ? ' <span class="muted incl">· inkl. Unterkategorien</span>' : ''}</span></td>
+        return `<tr class="${child ? 'sub' : ''}${zero && !child ? ' bz' : ''}" ${child ? `data-bparent="${c.parent_id}" style="--cc:${esc(state.cats.find(x => x.id === c.parent_id)?.color || c.color)}" ${String(budOpen) === String(c.parent_id) ? '' : 'hidden'}` : ''}><td class="nm">${chev}<span class="dot" style="background:${esc(c.color)}"></span><span class="nmtxt">${esc(c.name)}${hasKids ? ' <span class="muted incl">· inkl. Unterkategorien</span>' : ''}</span></td>
         <td class="num muted" data-l="Ø 3 Monate">${s.avg3_cents ? eur0(s.avg3_cents) : '–'}</td><td class="num" data-l="${esc(monthName(state.month))}">${eur(s.spent_cents || 0)}</td>
         ${hasKids ? `<td class="num bsumtd" data-l="Budget (€)"><strong class="bsum" title="${b ? 'Eigenes Budget der Hauptkategorie' : 'Summe der Unterkategorie-Budgets'}">${b ? eur0(b) : eff ? eur0(eff) : '–'}${b ? ` <button type="button" class="bclr" data-bclear="${c.id}" title="Eigenes Budget entfernen (Summe der Unterkategorien verwenden)" aria-label="Eigenes Budget von ${esc(c.name)} entfernen">×</button>` : ''}</strong></td>` : `<td class="num" data-l="Budget (€)"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="–" style="text-align:right"></td>`}
         <td class="st">${s.status && s.status !== 'none' ? `<span class="pill ${s.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten' }[s.status]}</span>` : ''}</td>
@@ -426,8 +427,12 @@ async function viewBudgets() {
   wireToolbar(viewBudgets);
   $$('[data-btoggle]', v).forEach(t => t.onclick = () => {
     const openNow = t.getAttribute('aria-expanded') !== 'true';
-    t.setAttribute('aria-expanded', String(openNow));
-    $$(`tr[data-bparent="${t.dataset.btoggle}"]`, v).forEach(r => { r.hidden = !openNow; });
+    budOpen = openNow ? t.dataset.btoggle : null;
+    $$('[data-btoggle]', v).forEach(o => {                    // Akkordeon: immer nur eine Hauptkategorie offen
+      const on = openNow && o === t;
+      o.setAttribute('aria-expanded', String(on));
+      $$(`tr[data-bparent="${o.dataset.btoggle}"]`, v).forEach(r => { r.hidden = !on; });
+    });
   });
   $$('.bud', v).forEach(i => i.onchange = async () => {
     const cents = i.value === '' ? null : Math.round(parseFloat(i.value) * 100);
