@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.1
+
+- Konten: „Bearbeiten“ und „Löschen“ sind jetzt – wie bei den Kategorien – platzsparende Icons (✎ und rotes Papierkorb-Icon).
+
 ## 0.11.0
 
 - Kontofilter (Übersicht und Umsätze): Statt des Dropdowns werden die Konten als antippbare Tags angezeigt. Mehrere Konten lassen sich gleichzeitig auswählen („Alle Konten“ = kein Filter). Auch „Gefilterte löschen“ und die Auswertungen berücksichtigen die Mehrfachauswahl.

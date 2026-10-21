@@ -459,10 +459,9 @@ async function viewAccounts() {
     <div class="card">${state.accounts.map(a => `<div class="list-item acc">
       <div class="grow"><div class="title">${esc(a.name)} <span class="pill">${esc(a.bank)}</span></div>
       <div class="muted">${esc(a.iban || 'keine IBAN')} · ${a.tx_count} Umsätze · ${a.last_sync ? 'letzter Abruf ' + esc(a.last_sync.replace('T', ' ')) : 'noch kein FinTS-Abruf'}</div></div>
+      <span class="icons"><button class="ib" data-act="edit" data-id="${a.id}" title="Bearbeiten" aria-label="${esc(a.name)} bearbeiten">✎</button><button class="ib danger" data-act="del" data-id="${a.id}" title="Löschen" aria-label="${esc(a.name)} löschen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l.8 12h9.4l.8-12M10 11v5M14 11v5"/></svg></button></span>
       <div class="acts"><button class="btn small" data-act="csv" data-id="${a.id}">CSV importieren</button>${a.bank === 'other' ? `<button class="btn small ghost" data-act="map" data-id="${a.id}">Spalten-Zuordnung${a.has_mapping ? '' : ' (fehlt)'}</button>` : ''}
-      <button class="btn small" data-act="sync" data-id="${a.id}">${a.bank === 'comdirect' && state.comdirectApi ? 'Per comdirect-API abrufen' : 'Per FinTS abrufen'}</button>
-      <button class="btn small ghost" data-act="edit" data-id="${a.id}">Bearbeiten</button>
-      <button class="btn small ghost danger" data-act="del" data-id="${a.id}">Löschen</button></div></div>`).join('') || '<p class="empty">Noch kein Konto angelegt.</p>'}</div>
+      <button class="btn small" data-act="sync" data-id="${a.id}">${a.bank === 'comdirect' && state.comdirectApi ? 'Per comdirect-API abrufen' : 'Per FinTS abrufen'}</button></div></div>`).join('') || '<p class="empty">Noch kein Konto angelegt.</p>'}</div>
     <input type="file" id="csv-file" accept=".csv,text/csv" class="hidden">
     <div class="card" style="margin-top:1rem"><h2>So kommst du an deine Umsätze</h2>
       <p><b>ING:</b> Banking → Umsatzanzeige → Export (CSV). &nbsp; <b>comdirect:</b> Umsätze → Download → CSV.<br>Mehrfach-Import überlappender Zeiträume ist unbedenklich, Duplikate werden erkannt.</p></div>`;

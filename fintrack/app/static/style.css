@@ -291,3 +291,4 @@ dialog #map-form .actions { background: var(--card); padding: .6rem 0; margin-to
 .acc-tags { display: flex; flex-wrap: wrap; gap: .4rem; margin: -.2rem 0 .8rem; }
 .tag { border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: .3rem .8rem; font: inherit; font-size: .85rem; cursor: pointer; }
 .tag.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.list-item.acc > .icons { align-self: flex-start; }
