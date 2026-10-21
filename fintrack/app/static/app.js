@@ -28,7 +28,7 @@ async function api(path, opts = {}) {
   const r = await fetch('api' + path, o);  // relativ: funktioniert auch unter dem Ingress-Pfad von Home Assistant
   const data = await r.json().catch(() => ({}));
   if (r.status === 401 && !path.startsWith('/login')) { showLogin(); throw new Error('Nicht angemeldet'); }
-  if (!r.ok) throw new Error(data.error || `Fehler ${r.status}`);
+  if (!r.ok) { const e = new Error(data.error || `Fehler ${r.status}`); e.data = data; throw e; }
   return data;
 }
 
@@ -443,7 +443,7 @@ async function viewAccounts() {
     <div class="card">${state.accounts.map(a => `<div class="list-item acc">
       <div class="grow"><div class="title">${esc(a.name)} <span class="pill">${esc(a.bank)}</span></div>
       <div class="muted">${esc(a.iban || 'keine IBAN')} · ${a.tx_count} Umsätze · ${a.last_sync ? 'letzter Abruf ' + esc(a.last_sync.replace('T', ' ')) : 'noch kein FinTS-Abruf'}</div></div>
-      <div class="acts"><button class="btn small" data-act="csv" data-id="${a.id}">CSV importieren</button>
+      <div class="acts"><button class="btn small" data-act="csv" data-id="${a.id}">CSV importieren</button>${a.bank === 'other' ? `<button class="btn small ghost" data-act="map" data-id="${a.id}">Spalten-Zuordnung${a.has_mapping ? '' : ' (fehlt)'}</button>` : ''}
       <button class="btn small" data-act="sync" data-id="${a.id}">${a.bank === 'comdirect' && state.comdirectApi ? 'Per comdirect-API abrufen' : 'Per FinTS abrufen'}</button>
       <button class="btn small ghost" data-act="edit" data-id="${a.id}">Bearbeiten</button>
       <button class="btn small ghost danger" data-act="del" data-id="${a.id}">Löschen</button></div></div>`).join('') || '<p class="empty">Noch kein Konto angelegt.</p>'}</div>
@@ -455,29 +455,130 @@ async function viewAccounts() {
     if (!confirm('Doppelte Umsätze entfernen, die durch FinTS- plus CSV-Import (leicht abweichender Text) entstanden sind? Identische Buchungen aus derselben Quelle, etwa zwei gleiche Käufe am selben Tag, bleiben erhalten.')) return;
     try { const x = await api('/dedupe', { json: {} }); await loadMeta(); toast(x.removed ? `${x.removed} Duplikate entfernt` : 'Keine Duplikate gefunden'); viewAccounts(); } catch (e) { toast(e.message, true); }
   };
-  let csvFor = null;
+  let csvFor = null, csvMapOnly = false;
   const fi = $('#csv-file');
   v.onclick = e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
     const a = state.accounts.find(x => String(x.id) === b.dataset.id);
-    if (b.dataset.act === 'csv') { csvFor = a.id; fi.value = ''; fi.click(); }
+    if (b.dataset.act === 'csv') { csvFor = a.id; csvMapOnly = false; fi.value = ''; fi.click(); }
     if (b.dataset.act === 'sync') {
       if (!syncAvailable(a)) return toast('Automatischer Abruf ist für dieses Konto nicht aktiviert (siehe Hinweis oben).', true);
       if (!a.fints_user) { toast('Bitte zuerst die Zugangsnummer / den Login-Namen eintragen.', true); return accountDialog(a); }
       syncDialog(a);
     }
+    if (b.dataset.act === 'map') { csvFor = a.id; csvMapOnly = true; fi.value = ''; fi.click(); }
     if (b.dataset.act === 'edit') accountDialog(a);
     if (b.dataset.act === 'del' && confirm(`Konto „${a.name}“ mit allen ${a.tx_count} Umsätzen löschen?`)) api(`/accounts/${a.id}`, { method: 'DELETE' }).then(viewAccounts);
   };
   fi.onchange = async () => {
-    if (!fi.files[0]) return;
-    const fd = new FormData(); fd.append('file', fi.files[0]); fd.append('account_id', csvFor);
-    try {
-      const r = await api('/import', { method: 'POST', body: fd });
-      toast(`${r.added} neu, ${r.duplicates} bereits vorhanden (${r.bank === 'ing' ? 'ING' : 'comdirect'}-Format erkannt)` + (r.own_name_added ? ` · „${r.own_name_added}“ als eigener Name für Umbuchungen übernommen` : ''));
-      viewAccounts();
-    } catch (e) { toast(e.message, true); }
+    const file = fi.files[0]; if (!file) return;
+    const acc = state.accounts.find(x => x.id === csvFor);
+    if (csvMapOnly) return mappingDialog(file, acc, done);
+    const fd = new FormData(); fd.append('file', file); fd.append('account_id', csvFor);
+    try { done(await api('/import', { method: 'POST', body: fd })); }
+    catch (e) {
+      if (e.data?.needs_mapping && acc?.bank === 'other') { toast(e.message); mappingDialog(file, acc, done); }
+      else toast(e.message, true);
+    }
   };
+  function done(r) {
+    const fmt = r.bank === 'ing' ? 'ING-Format erkannt' : r.bank === 'comdirect' ? 'comdirect-Format erkannt' : 'Spalten-Zuordnung angewendet';
+    toast(`${r.added} neu, ${r.duplicates} bereits vorhanden (${fmt})` + (r.skipped_rows ? ` · ${r.skipped_rows} Zeilen übersprungen` : '') + (r.own_name_added ? ` · „${r.own_name_added}“ als eigener Name für Umbuchungen übernommen` : ''));
+    loadMeta().then(viewAccounts);
+  }
+}
+
+// Spalten-Zuordnung für beliebige CSV-Dateien (Kontotyp „Andere“)
+const MAP_ROLES = [
+  ['date', 'Buchungsdatum *'], ['payee', 'Empfänger / Auftraggeber'], ['purpose', 'Verwendungszweck'], ['purpose2', 'Verwendungszweck (2. Spalte)'],
+  ['booking_text', 'Buchungstext / -art'], ['value_date', 'Valuta'], ['iban', 'IBAN Gegenseite'], ['currency', 'Währung'],
+];
+function mappingDialog(file, acc, onDone) {
+  const small = file.slice(0, 262144);
+  let info = null, overrides = {}, mapping = null, importing = false;
+  const mkFd = (extra = {}) => {
+    const fd = new FormData(); fd.append('file', small); fd.append('account_id', acc.id);
+    fd.append('overrides', JSON.stringify(overrides));
+    for (const [k, v] of Object.entries(extra)) fd.append(k, v);
+    return fd;
+  };
+  const opt = (v, t, sel) => `<option value="${esc(v)}"${String(sel) === String(v) ? ' selected' : ''}>${esc(t)}</option>`;
+  const colSel = (name, val) => `<select data-col="${name}">${opt('', '– nicht zuordnen –', val)}${info.headers.map(h => opt(h, h, val)).join('')}</select>`;
+  function initMapping(keepOld) {
+    const sug = info.suggested || {};
+    const saved = info.saved && info.saved.date && [info.saved.date, info.saved.amount, info.saved.debit, info.saved.credit].filter(Boolean).every(c => info.headers.includes(c)) ? info.saved : null;
+    const base = (keepOld && mapping && info.headers.includes(mapping.date)) ? mapping : (saved || sug);
+    const p = base.purpose || [];
+    mapping = { ...base, purpose: p, decimal: base.decimal || 'auto', date_format: base.date_format || sug.date_format || 'auto',
+      invert: !!base.invert, amount_mode: base.amount_mode || 'single' };
+  }
+  function read() {
+    const g = n => d.querySelector(`[data-col="${n}"]`)?.value || '';
+    const m = { amount_mode: d.querySelector('[name=amount_mode]').value, decimal: d.querySelector('[name=decimal]').value,
+      date_format: d.querySelector('[name=date_format]').value, invert: d.querySelector('[name=invert]').checked,
+      encoding: overrides.encoding || 'auto', delimiter: overrides.delimiter || 'auto', header_row: overrides.header_row ?? info.header_row ?? 'none',
+      purpose: [g('purpose'), g('purpose2')].filter(Boolean) };
+    for (const f of ['date', 'payee', 'booking_text', 'value_date', 'iban', 'currency', 'amount', 'debit', 'credit', 'sign']) m[f] = g(f);
+    return m;
+  }
+  const money = c => (c / 100).toLocaleString('de-DE', { style: 'currency', currency: 'EUR' });
+  async function refreshResult() {
+    const box = d.querySelector('#map-result'); mapping = read();
+    d.querySelector('#amt-single').classList.toggle('hidden', mapping.amount_mode === 'split');
+    d.querySelector('#amt-split').classList.toggle('hidden', mapping.amount_mode !== 'split');
+    try {
+      const r = (await api('/csv/preview', { method: 'POST', body: mkFd({ mapping: JSON.stringify(mapping) }) })).result;
+      if (!r || r.error) { box.innerHTML = `<p class="muted">${esc(r?.error || 'Bitte Datum und Betrag zuordnen.')}</p>`; d.querySelector('#map-go').disabled = true; return; }
+      box.innerHTML = `<p class="muted">${r.parsed} von ${r.rows} Zeilen erkannt${r.skipped ? `, ${r.skipped} übersprungen` : ''}${small.size < file.size ? ' (Vorschau der ersten Zeilen)' : ''}.${r.problems.length ? '<br>' + r.problems.map(esc).join('<br>') : ''}</p>
+        <div class="tablewrap"><table class="tx"><tbody>${r.rows_preview.map(x => `<tr><td>${esc(x.date)}</td><td>${esc(x.payee || x.purpose).slice(0, 40)}</td><td class="num ${x.amount_cents < 0 ? 'neg' : 'pos'}">${money(x.amount_cents / 1)}</td></tr>`).join('')}</tbody></table></div>`;
+      d.querySelector('#map-go').disabled = !r.parsed;
+    } catch (e) { box.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+  }
+  function render() {
+    const m = mapping, ov = overrides;
+    const d0 = openDialog(`<form id="map-form"><h3>Spalten zuordnen</h3>
+      <p class="muted">Ordne die Spalten deiner CSV-Datei zu. Die Zuordnung wird für „${esc(acc.name)}“ gespeichert; künftige Dateien mit denselben Spaltenüberschriften werden automatisch erkannt.</p>
+      <div class="grid2">
+        <label>Trennzeichen<select name="delimiter">${[['auto', 'automatisch (' + info.delimiter + ')'], [';', 'Semikolon ;'], [',', 'Komma ,'], ['tab', 'Tabulator'], ['|', 'Senkrechtstrich |']].map(([v, t]) => opt(v, t, ov.delimiter || 'auto')).join('')}</select></label>
+        <label>Zeichensatz<select name="encoding">${[['auto', 'automatisch'], ['utf-8', 'UTF-8'], ['cp1252', 'Windows-1252'], ['latin-1', 'Latin-1']].map(([v, t]) => opt(v, t, ov.encoding || 'auto')).join('')}</select></label>
+        <label>Kopfzeile<select name="header_row">${opt('none', 'keine Kopfzeile', ov.header_row ?? info.header_row ?? 'none')}${[...Array(10).keys()].map(i => opt(i, 'Zeile ' + (i + 1), ov.header_row ?? info.header_row ?? 'none')).join('')}</select></label>
+        <label>Datumsformat<select name="date_format">${[['auto', 'automatisch'], ['%d.%m.%Y', 'TT.MM.JJJJ'], ['%d.%m.%y', 'TT.MM.JJ'], ['%Y-%m-%d', 'JJJJ-MM-TT'], ['%d/%m/%Y', 'TT/MM/JJJJ'], ['%m/%d/%Y', 'MM/TT/JJJJ'], ['%d-%m-%Y', 'TT-MM-JJJJ'], ['%Y%m%d', 'JJJJMMTT']].map(([v, t]) => opt(v, t, m.date_format)).join('')}</select></label>
+      </div>
+      <details class="muted" style="margin:.5rem 0"><summary>Rohdaten der Datei</summary><div class="tablewrap"><table class="tx"><tbody>${info.raw_preview.map(r => `<tr>${r.map(c => `<td>${esc(c).slice(0, 24)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>
+      ${MAP_ROLES.map(([k, t]) => `<label>${t}${colSel(k, k === 'purpose2' ? (m.purpose || [])[1] || '' : k === 'purpose' ? (m.purpose || [])[0] || '' : m[k] || '')}</label>`).join('')}
+      <label>Betrag<select name="amount_mode">${opt('single', 'Eine Betragsspalte (mit Vorzeichen)', m.amount_mode)}${opt('split', 'Getrennt: Soll / Haben', m.amount_mode)}</select></label>
+      <div id="amt-single" class="${m.amount_mode === 'split' ? 'hidden' : ''}"><label>Betrags-Spalte *${colSel('amount', m.amount || '')}</label>
+        <label>Soll/Haben-Kennzeichen (optional, S/H bzw. D/C)${colSel('sign', m.sign || '')}</label></div>
+      <div id="amt-split" class="${m.amount_mode === 'split' ? '' : 'hidden'}"><label>Soll / Belastung (Ausgaben)${colSel('debit', m.debit || '')}</label>
+        <label>Haben / Gutschrift (Einnahmen)${colSel('credit', m.credit || '')}</label></div>
+      <div class="grid2"><label>Dezimaltrenner<select name="decimal">${[['auto', 'automatisch'], ['comma', 'Komma (1.234,56)'], ['dot', 'Punkt (1,234.56)']].map(([v, t]) => opt(v, t, m.decimal)).join('')}</select></label>
+        <label class="check" style="align-self:end"><input type="checkbox" name="invert"${m.invert ? ' checked' : ''}> Vorzeichen umkehren</label></div>
+      <div id="map-result"></div>
+      <div class="actions"><button type="button" class="btn ghost" id="map-cancel">Abbrechen</button><button type="submit" class="btn" id="map-go" disabled>Speichern &amp; importieren</button></div></form>`);
+    d = d0;
+    d.querySelector('#map-cancel').onclick = closeDialog;
+    for (const n of ['delimiter', 'encoding', 'header_row']) d.querySelector(`[name=${n}]`).onchange = async e => {
+      const v = e.target.value; if (v === 'auto') delete overrides[n]; else overrides[n] = v;
+      mapping = read(); await analyse(true);
+    };
+    d.querySelectorAll('select:not([name=delimiter]):not([name=encoding]):not([name=header_row]), [name=invert]').forEach(el => el.onchange = refreshResult);
+    d.querySelector('#map-form').onsubmit = async ev => {
+      ev.preventDefault(); if (importing) return; importing = true;
+      const fd = new FormData(); fd.append('file', file); fd.append('account_id', acc.id);
+      fd.append('mapping', JSON.stringify(read())); fd.append('save_mapping', '1');
+      try { const r = await api('/import', { method: 'POST', body: fd }); closeDialog(); onDone(r); }
+      catch (e) { toast(e.message, true); importing = false; }
+    };
+    refreshResult();
+  }
+  let d;
+  async function analyse(keep) {
+    try {
+      info = await api('/csv/preview', { method: 'POST', body: mkFd() });
+      initMapping(keep); render();
+    } catch (e) { toast(e.message, true); }
+  }
+  analyse(false);
 }
 
 function accountDialog(a) {

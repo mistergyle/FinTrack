@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 import tempfile
@@ -475,6 +476,78 @@ class AnalysisTests(unittest.TestCase):
             self.assertIn("Stadtwerke Musterstadt", up)
             self.assertNotIn("Hausverwaltung Müller", up)     # fällig am 1., heute ist der 2.
             self.assertNotIn("Musterfirma GmbH", up)          # Einnahme, keine Ausgabe
+
+
+class GenericCsvTests(unittest.TestCase):
+    BANK_A = ("Konto;Test\n\nDatum;Gegenseite;Text;Soll;Haben\n"
+              "03.02.2026;REWE Markt;Einkauf;45,20;\n"
+              "05.02.2026;Arbeitgeber GmbH;Gehalt;;2.500,00\n"
+              "06.02.2026;Netflix;Abo;12,99;\n").encode("cp1252")
+    BANK_B = ("Date,Description,Amount\n2026-03-01,\"Coffee, Bar\",-3.50\n2026-03-02,Salary,\"1,200.00\"\n").encode()
+
+    def setUp(self):
+        fresh_db()
+        self.c = TestClient(create_app())
+        self.c.post("/api/login", json={"password": "geheim"})
+
+    def test_numbers_dates(self):
+        from app import csv_generic as g
+        self.assertEqual(g.parse_number("1.234,56"), 123456)
+        self.assertEqual(g.parse_number("1,234.56"), 123456)
+        self.assertEqual(g.parse_number("-3.50"), -350)
+        self.assertEqual(g.parse_number("12,5-"), -1250)
+        self.assertEqual(g.parse_number("(5,00)"), -500)
+        self.assertEqual(g.parse_date_cell("5/2/2026", "%d/%m/%Y"), "2026-02-05")
+
+    def test_analyze(self):
+        from app import csv_generic as g
+        a = g.analyze(self.BANK_A)
+        self.assertEqual(a["delimiter"], ";")
+        self.assertEqual(a["header_row"], 2)
+        self.assertEqual(a["suggested"]["date"], "Datum")
+        self.assertEqual(a["suggested"]["amount_mode"], "split")
+        b = g.analyze(self.BANK_B)
+        self.assertEqual(b["delimiter"], ",")
+        self.assertEqual(b["suggested"]["amount"], "Amount")
+
+    def test_split_mapping_and_reuse(self):
+        c = self.c
+        acc = c.post("/api/accounts", json={"name": "Sonst", "bank": "other"}).json()["id"]
+        r = c.post("/api/import", files={"file": ("a.csv", self.BANK_A)}, data={"account_id": str(acc)})
+        self.assertEqual(r.status_code, 422)
+        self.assertTrue(r.json()["needs_mapping"])
+        m = {"date": "Datum", "payee": "Gegenseite", "purpose": ["Text"], "amount_mode": "split",
+             "debit": "Soll", "credit": "Haben", "header_row": 2}
+        pv = c.post("/api/csv/preview", files={"file": ("a.csv", self.BANK_A)},
+                    data={"account_id": str(acc), "mapping": json.dumps(m)}).json()
+        self.assertEqual(pv["result"]["parsed"], 3)
+        r = c.post("/api/import", files={"file": ("a.csv", self.BANK_A)},
+                   data={"account_id": str(acc), "mapping": json.dumps(m), "save_mapping": "1"})
+        self.assertEqual(r.status_code, 200, r.text)
+        self.assertEqual(r.json()["added"], 3)
+        txs = c.get("/api/transactions?limit=10").json()["transactions"]
+        self.assertEqual(sorted(t["amount_cents"] for t in txs), [-4520, -1299, 250000])
+        # gespeicherte Zuordnung wird automatisch verwendet; Duplikate erkannt
+        r = c.post("/api/import", files={"file": ("a.csv", self.BANK_A)}, data={"account_id": str(acc)})
+        self.assertEqual((r.json()["added"], r.json()["duplicates"]), (0, 3))
+        # ohne Konto: Erkennung über Spaltenüberschriften
+        r = c.post("/api/import", files={"file": ("a.csv", self.BANK_A)})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["account_id"], acc)
+        self.assertTrue([a for a in c.get("/api/accounts").json()["accounts"] if a["id"] == acc][0]["has_mapping"])
+
+    def test_mismatch_and_dot_decimal(self):
+        c = self.c
+        acc = c.post("/api/accounts", json={"name": "B", "bank": "other"}).json()["id"]
+        m = {"date": "Date", "payee": "Description", "amount": "Amount", "date_format": "%Y-%m-%d"}
+        r = c.post("/api/import", files={"file": ("b.csv", self.BANK_B)},
+                   data={"account_id": str(acc), "mapping": json.dumps(m), "save_mapping": "1"})
+        self.assertEqual(r.json()["added"], 2, r.text)
+        txs = c.get("/api/transactions?limit=10").json()["transactions"]
+        self.assertEqual(sorted(t["amount_cents"] for t in txs), [-350, 120000])
+        r = c.post("/api/import", files={"file": ("a.csv", self.BANK_A)}, data={"account_id": str(acc)})
+        self.assertEqual(r.status_code, 422)
+        self.assertTrue(r.json()["needs_mapping"])
 
 
 class ApiTests(unittest.TestCase):

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.10.0
+
+- Neuer Kontotyp „Andere“ mit beliebigem CSV-Import: Beim ersten Import öffnet sich ein Dialog zur Spalten-Zuordnung (Trennzeichen, Zeichensatz, Kopfzeile, Datum, Betrag als eine Spalte oder Soll/Haben, Empfänger, Verwendungszweck, Buchungstext, Valuta, IBAN, Währung) mit Live-Vorschau. Die Zuordnung wird am Konto gespeichert und bei späteren Importen anhand der Spaltenüberschriften automatisch angewendet – auch ohne Kontoauswahl. Über „Spalten-Zuordnung“ am Konto lässt sie sich jederzeit ändern.
+
 ## 0.9.1
 
 - Mobil: Zeitraum-Leiste repariert (‹ Zeitraum › in einer Zeile, nichts läuft mehr über den Rand); Konto-, Kategorie- und Sortier-Auswahl über volle Breite. „Heute“ steckt auf dem Handy im Datepicker.

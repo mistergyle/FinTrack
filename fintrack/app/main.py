@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hmac
+import json
 import os
 import re
 import secrets
@@ -17,7 +18,7 @@ from starlette.responses import FileResponse, JSONResponse, Response
 from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 
-from . import analysis, category_tree, comdirect_api, comdirect_sync, fints_sync
+from . import analysis, category_tree, comdirect_api, csv_generic, comdirect_sync, fints_sync
 from .categorizer import apply_rules
 from .db import get_setting, init_db, now_iso, session, set_setting
 from .importers import ImportError_, find_account_by_iban, parse_csv, remove_duplicates, store_transactions
@@ -146,6 +147,7 @@ async def session_info(request: Request):
 
 def _account_row(r) -> dict:
     d = dict(r)
+    d["has_mapping"] = bool(d.pop("csv_mapping", None))
     d["tx_count"] = r["tx_count"] if "tx_count" in r.keys() else 0
     return d
 
@@ -212,12 +214,47 @@ async def import_csv(request: Request):
     data = await up.read()
     if len(data) > 20 * 1024 * 1024:
         return err("Datei zu groß (max. 20 MB).", 413)
-    try:
-        pf = parse_csv(data)
-    except ImportError_ as e:
-        return err(str(e))
+    aid = int(form["account_id"]) if form.get("account_id") else None
+    mapping_in = form.get("mapping") or None
     with session() as conn:
-        aid = int(form["account_id"]) if form.get("account_id") else None
+        acc = conn.execute("SELECT * FROM accounts WHERE id=?", (aid,)).fetchone() if aid else None
+        if aid and acc is None:
+            return err("Konto nicht gefunden.", 404)
+        pf, gstats = None, None
+        if acc is not None and (acc["bank"] == "other" or mapping_in):
+            mp = mapping_in or acc["csv_mapping"]
+            if not mp:
+                return JSONResponse({"error": "Für dieses Konto ist noch keine Spalten-Zuordnung gespeichert.",
+                                     "needs_mapping": True}, status_code=422)
+            try:
+                pf, gstats = csv_generic.parse_with_mapping(data, mp)
+            except csv_generic.MappingMismatch as e:
+                return JSONResponse({"error": str(e), "needs_mapping": True}, status_code=422)
+            except ImportError_ as e:
+                return JSONResponse({"error": str(e), "needs_mapping": True}, status_code=422)
+            if not pf.transactions:
+                return JSONResponse({"error": "Mit dieser Zuordnung wurden keine Umsätze erkannt.",
+                                     "needs_mapping": True}, status_code=422)
+            if form.get("save_mapping") in ("1", "true"):
+                conn.execute("UPDATE accounts SET csv_mapping=? WHERE id=?",
+                             (json.dumps(csv_generic.normalize_mapping(mp), ensure_ascii=False), aid))
+        else:
+            try:
+                pf = parse_csv(data)
+            except ImportError_ as e:
+                if aid is None:       # unbekanntes Format: gespeicherte Zuordnungen der „Andere“-Konten probieren
+                    hits = [r["id"] for r in conn.execute(
+                        "SELECT id, csv_mapping FROM accounts WHERE bank='other' AND csv_mapping IS NOT NULL")
+                        if csv_generic.matches(data, r["csv_mapping"])]
+                    if len(hits) == 1:
+                        aid = hits[0]
+                        acc = conn.execute("SELECT * FROM accounts WHERE id=?", (aid,)).fetchone()
+                        pf, gstats = csv_generic.parse_with_mapping(data, acc["csv_mapping"])
+                    else:
+                        return JSONResponse({"error": str(e), "needs_mapping": True, "needs_account": True},
+                                            status_code=400)
+                else:
+                    return err(str(e))
         if aid is None:
             aid = find_account_by_iban(conn, pf.iban)
         if aid is None:
@@ -239,7 +276,43 @@ async def import_csv(request: Request):
         if name_added:
             apply_rules(conn)
         return JSONResponse({**stats, "bank": pf.bank, "account_id": aid, "parsed": len(pf.transactions),
-                             "own_name_added": name_added})
+                             "own_name_added": name_added, "skipped_rows": (gstats or {}).get("skipped", 0)})
+
+
+async def csv_preview(request: Request):
+    form = await request.form()
+    up = form.get("file")
+    if up is None or not hasattr(up, "read"):
+        return err("Keine Datei übergeben.")
+    data = await up.read()
+    try:
+        overrides = json.loads(form.get("overrides") or "{}")
+        info = csv_generic.analyze(data, overrides)
+    except (ValueError, ImportError_) as e:
+        return err(str(e))
+    saved = None
+    if form.get("account_id"):
+        with session() as conn:
+            r = conn.execute("SELECT csv_mapping FROM accounts WHERE id=?", (int(form["account_id"]),)).fetchone()
+        if r and r["csv_mapping"]:
+            saved = json.loads(r["csv_mapping"])
+    info["saved"] = saved
+    mp = form.get("mapping")
+    if mp:
+        try:
+            pf, st = csv_generic.parse_with_mapping(data, mp)
+            info["result"] = {**st, "rows_preview": [
+                {"date": t.booking_date, "payee": t.payee, "purpose": t.purpose, "amount_cents": t.amount_cents}
+                for t in pf.transactions[:5]]}
+        except ImportError_ as e:
+            info["result"] = {"error": str(e)}
+    return JSONResponse(info)
+
+
+async def delete_csv_mapping(request: Request):
+    with session() as conn:
+        conn.execute("UPDATE accounts SET csv_mapping=NULL WHERE id=?", (int(request.path_params["id"]),))
+    return JSONResponse({"ok": True})
 
 
 async def sync_start(request: Request):
@@ -594,6 +667,8 @@ routes = [
     Route("/api/accounts/{id:int}", update_account, methods=["PATCH"]),
     Route("/api/accounts/{id:int}", delete_account, methods=["DELETE"]),
     Route("/api/import", import_csv, methods=["POST"]),
+    Route("/api/csv/preview", csv_preview, methods=["POST"]),
+    Route("/api/accounts/{id:int}/csv-mapping", delete_csv_mapping, methods=["DELETE"]),
     Route("/api/accounts/{id:int}/sync", sync_start, methods=["POST"]),
     Route("/api/dedupe", dedupe, methods=["POST"]),
     Route("/api/sync/{job}", sync_status),

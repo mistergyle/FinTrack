@@ -107,6 +107,9 @@ def init_db() -> None:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(categories)")}
         if "parent_id" not in cols:   # Migration älterer Datenbanken
             conn.execute("ALTER TABLE categories ADD COLUMN parent_id INTEGER REFERENCES categories(id) ON DELETE SET NULL")
+        acols = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)")}
+        if "csv_mapping" not in acols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN csv_mapping TEXT")
         seed_defaults(conn)
         add_extra_rules(conn)
         from .category_tree import migrate_template

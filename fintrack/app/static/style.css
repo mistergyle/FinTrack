@@ -275,3 +275,14 @@ th.num .th-sort { flex-direction: row-reverse; }
   .toolbar > .spacer { display: none; }
   #tx-sum { flex: 1 1 100%; text-align: right; }
 }
+
+/* CSV-Spalten-Zuordnung */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 .7rem; }
+.tablewrap { overflow-x: auto; max-width: 100%; }
+.tablewrap table { width: 100%; font-size: .8rem; border-collapse: collapse; }
+.tablewrap td { padding: .2rem .35rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.tablewrap td.num { text-align: right; }
+label.check { display: flex; align-items: center; gap: .4rem; }
+label.check input { width: auto; }
+dialog #map-form select { width: 100%; }
+dialog #map-form .actions { background: var(--card); padding: .6rem 0; margin-top: .6rem; }
