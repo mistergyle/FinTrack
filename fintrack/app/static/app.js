@@ -685,6 +685,7 @@ async function pollSync(jobId, a) {
   $('#s-ok', d).onclick = closeDialog;
 }
 
+let catOpen = null;   // aufgeklappte Hauptkategorie unter „Regeln“ (immer nur eine)
 async function viewRules() {
   const [r, s] = await Promise.all([api('/rules'), api('/settings')]);
   const v = $('#view');
@@ -703,9 +704,9 @@ async function viewRules() {
     <div class="card" style="margin-top:1rem"><div class="row" style="margin-bottom:.4rem"><h2 style="margin:0">Kategorien &amp; Unterkategorien</h2><span class="spacer"></span>
       <button class="btn" id="cat-tpl">Vorlage anwenden</button><button class="btn primary" id="cat-add">Neue Kategorie</button></div>
       <p class="muted" style="margin-top:0;font-size:.86rem">Unterkategorien sind optional. Eine Oberkategorie zählt ihre eigenen Umsätze plus alle Unterkategorien zusammen (Übersicht, Diagramme, Budget).</p>
-      ${catTree().map(t => `<div class="cat-mgmt"><div class="list-item"><span class="dot" style="background:${esc(t.color)}"></span><div class="grow"><b>${esc(t.name)}</b> <span class="muted">${KIND_LABEL[t.kind]}${t.children.length ? ` · ${t.children.length} Unterkategorien` : ''}</span></div>
+      ${catTree().map(t => `<div class="cat-mgmt"><div class="list-item cat-top">${t.children.length ? `<button class="chev" type="button" data-ctoggle="${t.id}" aria-expanded="${String(catOpen) === String(t.id)}" aria-label="Unterkategorien von ${esc(t.name)} ein-/ausklappen">›</button>` : '<span class="chev-gap"></span>'}<span class="dot" style="background:${esc(t.color)}"></span><div class="grow"><b>${esc(t.name)}</b> <span class="muted">${KIND_LABEL[t.kind]}${t.children.length ? ` · ${t.children.length} Unterkategorien` : ''}</span></div>
         <div class="icons"><button class="ib" data-cat-sub="${t.id}" title="Unterkategorie hinzufügen" aria-label="Unterkategorie zu ${esc(t.name)} hinzufügen">＋</button><button class="ib" data-cat-edit="${t.id}" title="Bearbeiten" aria-label="${esc(t.name)} bearbeiten">✎</button><button class="ib danger" data-cat-del="${t.id}" title="Löschen" aria-label="${esc(t.name)} löschen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l.8 12h9.4l.8-12M10 11v5M14 11v5"/></svg></button></div></div>
-        ${t.children.map(k => `<div class="list-item child-item"><div class="grow">${esc(k.name)}</div><div class="icons"><button class="ib" data-cat-edit="${k.id}" title="Bearbeiten" aria-label="${esc(k.name)} bearbeiten">✎</button><button class="ib danger" data-cat-del="${k.id}" title="Löschen" aria-label="${esc(k.name)} löschen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l.8 12h9.4l.8-12M10 11v5M14 11v5"/></svg></button></div></div>`).join('')}</div>`).join('')}
+        ${t.children.map(k => `<div class="list-item child-item" data-cparent="${t.id}" style="--cc:${esc(t.color)}" ${String(catOpen) === String(t.id) ? '' : 'hidden'}><span class="dot" style="background:${esc(k.color)}"></span><div class="grow">${esc(k.name)}</div><div class="icons"><button class="ib" data-cat-edit="${k.id}" title="Bearbeiten" aria-label="${esc(k.name)} bearbeiten">✎</button><button class="ib danger" data-cat-del="${k.id}" title="Löschen" aria-label="${esc(k.name)} löschen"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M9 7V5h6v2M6.5 7l.8 12h9.4l.8-12M10 11v5M14 11v5"/></svg></button></div></div>`).join('')}</div>`).join('')}
     </div>
     <div class="card" style="margin-top:1rem"><h2>Deine Regeln (${r.rules.length})</h2>
       ${r.rules.map(x => `<div class="list-item"><div class="grow"><code>${esc(x.pattern)}</code> → <b>${esc(x.category)}</b> <span class="muted">(${{ any: 'alle', in: 'Einnahmen', out: 'Ausgaben' }[x.direction]})</span></div>
@@ -725,8 +726,18 @@ async function viewRules() {
   v.onclick = async e => {
     const b = e.target.closest('[data-del]');
     if (b) { await api(`/rules/${b.dataset.del}`, { method: 'DELETE' }); return viewRules(); }
+    const tg = e.target.closest('[data-ctoggle]');
+    if (tg) {                                                   // Akkordeon: immer nur eine Hauptkategorie offen
+      const openNow = tg.getAttribute('aria-expanded') !== 'true';
+      catOpen = openNow ? tg.dataset.ctoggle : null;
+      $$('[data-ctoggle]', v).forEach(o => {
+        const on = openNow && o === tg; o.setAttribute('aria-expanded', String(on));
+        $$(`[data-cparent="${o.dataset.ctoggle}"]`, v).forEach(r => { r.hidden = !on; });
+      });
+      return;
+    }
     const sub = e.target.closest('[data-cat-sub]'), ed = e.target.closest('[data-cat-edit]'), del = e.target.closest('[data-cat-del]');
-    if (sub) categoryDialog(null, Number(sub.dataset.catSub));
+    if (sub) { catOpen = sub.dataset.catSub; categoryDialog(null, Number(sub.dataset.catSub)); }
     if (ed) categoryDialog(state.cats.find(c => String(c.id) === ed.dataset.catEdit));
     if (del) {
       const c = state.cats.find(x => String(x.id) === del.dataset.catDel);

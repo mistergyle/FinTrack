@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.5
+
+- Regeln → „Kategorien & Unterkategorien“ analog zu den Budgets: Hauptkategorien mit Pfeil zum Auf-/Zuklappen (immer nur eine offen, beim Start alle zu), Unterkategorien mit getöntem Hintergrund und farbigem Balken links. Nach „＋ Unterkategorie“ ist die Hauptkategorie aufgeklappt.
+
 ## 0.12.4
 
 - Budgets: Es ist immer nur eine Hauptkategorie aufgeklappt – beim Öffnen einer weiteren schließt sich die vorherige. Beim Start sind alle zugeklappt; nach dem Speichern eines Budgets bleibt die geöffnete Kategorie offen.

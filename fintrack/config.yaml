@@ -1,5 +1,5 @@
 name: FinTrack
-version: "0.12.4"
+version: "0.12.5"
 slug: fintrack
 description: Selbst gehostete Finanzübersicht – Umsätze von ING und comdirect importieren, kategorisieren und auswerten
 url: https://github.com/mistergyle/FinTrack

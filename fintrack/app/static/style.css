@@ -343,3 +343,9 @@ table.bt tr:not(.sub) td.nm { font-weight: 600; }
   table.bt tr.sub { box-shadow: inset 3px 0 0 var(--cc, var(--accent)); border-radius: 0 8px 8px 0; margin: .1rem 0; padding-left: 1.1rem; }
   table.bt tr.sub > td:first-child { box-shadow: none; }
 }
+
+/* Regeln: Kategorien analog zu den Budgets (Akkordeon, Unterkategorien farblich abgesetzt) */
+.cat-mgmt .child-item[hidden] { display: none; }
+.cat-mgmt .child-item { background: color-mix(in srgb, var(--cc, var(--accent)) 7%, var(--card)); box-shadow: inset 3px 0 0 var(--cc, var(--accent)); border-radius: 0 8px 8px 0; margin: .1rem 0; padding: .25rem 0 .25rem 1.1rem; align-items: center; }
+.cat-mgmt .child-item .dot { flex: none; }
+.cat-mgmt .cat-top > .grow b { font-weight: 700; }
