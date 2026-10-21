@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.6
+
+- Umsätze (mobil): Sortier-Icons stehen in einer Zeile neben „Gefilterte löschen“; das aktive Icon ist farbig hinterlegt und mit einem Ring hervorgehoben.
+
 ## 0.11.5
 
 - Umsätze (mobil): Das Sortier-Dropdown ist durch zwei Icons ersetzt – Kalender = „Datum · neueste zuerst“ (Standard), Euro = „Betrag · Ausgaben zuerst“. Auf dem Desktop bleibt die Sortierung über die Spaltenüberschriften.
