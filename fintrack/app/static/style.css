@@ -330,3 +330,7 @@ td.bm, .bz-toggle { display: none; }
   .bz-toggle { display: block; margin: .6rem auto 0; }
 }
 table.bt .pill { white-space: nowrap; }
+.bsum { display: block; text-align: right; font-size: 1.05rem; padding-right: .1rem; }
+@media (max-width: 640px) { table.bt td.num.bsumtd { display: block; grid-column: 2; grid-row: 1; } table.bt td.bsumtd .bsum { padding-right: .5rem; } }
+.bclr { font: inherit; border: 0; background: none; color: var(--muted); cursor: pointer; padding: 0 .25rem; font-size: 1rem; line-height: 1; }
+.bclr:hover { color: var(--bad); }

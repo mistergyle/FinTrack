@@ -418,7 +418,7 @@ async function viewBudgets() {
         const meta = `${eur0(sp)}${eb ? ' von ' + eur0(eb) : ''}${s.avg3_cents ? ' · Ø ' + eur0(s.avg3_cents) : ''}`;
         return `<tr class="${child ? 'sub' : ''}${zero && !child ? ' bz' : ''}" ${child ? `data-bparent="${c.parent_id}" ${open ? '' : 'hidden'}` : ''}><td class="nm">${chev}<span class="dot" style="background:${esc(c.color)}"></span><span class="nmtxt">${esc(c.name)}${hasKids ? ' <span class="muted incl">· inkl. Unterkategorien</span>' : ''}</span></td>
         <td class="num muted" data-l="Ø 3 Monate">${s.avg3_cents ? eur0(s.avg3_cents) : '–'}</td><td class="num" data-l="${esc(monthName(state.month))}">${eur(s.spent_cents || 0)}</td>
-        <td class="num" data-l="Budget (€)"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="${eff ? eur0(eff) + ' (Summe)' : '–'}" style="text-align:right"></td>
+        ${hasKids ? `<td class="num bsumtd" data-l="Budget (€)"><strong class="bsum" title="${b ? 'Eigenes Budget der Hauptkategorie' : 'Summe der Unterkategorie-Budgets'}">${b ? eur0(b) : eff ? eur0(eff) : '–'}${b ? ` <button type="button" class="bclr" data-bclear="${c.id}" title="Eigenes Budget entfernen (Summe der Unterkategorien verwenden)" aria-label="Eigenes Budget von ${esc(c.name)} entfernen">×</button>` : ''}</strong></td>` : `<td class="num" data-l="Budget (€)"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="–" style="text-align:right"></td>`}
         <td class="st">${s.status && s.status !== 'none' ? `<span class="pill ${s.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten' }[s.status]}</span>` : ''}</td>
         <td class="bm">${eb ? `<div class="bbar ${s.status || ''}"><i style="width:${Math.min(100, Math.round(sp / eb * 100))}%"></i></div>` : ''}<div class="bmeta">${meta}</div></td></tr>`; }).join('')}
       </tbody></table></div>
@@ -432,6 +432,9 @@ async function viewBudgets() {
   $$('.bud', v).forEach(i => i.onchange = async () => {
     const cents = i.value === '' ? null : Math.round(parseFloat(i.value) * 100);
     try { await api(`/budgets/${i.dataset.id}`, { method: 'PUT', json: { monthly_cents: cents } }); await loadMeta(); toast('Budget gespeichert'); viewBudgets(); } catch (e) { toast(e.message, true); }
+  });
+  $$('[data-bclear]', v).forEach(x => x.onclick = async () => {
+    try { await api(`/budgets/${x.dataset.bclear}`, { method: 'PUT', json: { monthly_cents: null } }); await loadMeta(); toast('Eigenes Budget entfernt'); viewBudgets(); } catch (e) { toast(e.message, true); }
   });
   const bz = $('#bz-toggle');
   if (bz) bz.onclick = () => { const t = $('table.bt', v); t.classList.toggle('show-zero'); bz.textContent = t.classList.contains('show-zero') ? 'Weitere Kategorien ausblenden' : 'Weitere Kategorien anzeigen'; };

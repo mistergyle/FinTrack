@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.12.1
+
+- Budgets: Die Summe einer Hauptkategorie ist jetzt fett hervorgehoben statt in einem Eingabefeld (bearbeitet wird in den Unterkategorien). Ein früher gesetztes eigenes Budget der Hauptkategorie lässt sich über das kleine × entfernen.
+
 ## 0.12.0
 
 - Budgets (mobil) deutlich kompakter: pro Kategorie nur noch eine Zeile mit Name (einzeilig) und Budget-Feld, darunter ein Fortschrittsbalken (grün / orange / rot) mit „Ausgegeben von Budget · Ø 3 Monate“. Kategorien ohne Ausgaben und ohne Budget sind unter „Weitere Kategorien anzeigen“ eingeklappt.
