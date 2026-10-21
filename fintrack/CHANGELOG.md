@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.7
+
+- Umsätze (mobil): Das aktive Sortier-Icon ist auch beim ersten Öffnen der Ansicht farbig markiert (vorher erst nach dem ersten Antippen).
+
 ## 0.11.6
 
 - Umsätze (mobil): Sortier-Icons stehen in einer Zeile neben „Gefilterte löschen“; das aktive Icon ist farbig hinterlegt und mit einem Ring hervorgehoben.
