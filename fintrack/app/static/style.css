@@ -304,3 +304,29 @@ dialog #map-form .actions { background: var(--card); padding: .6rem 0; margin-to
   .acc-toolbar .spacer { display: none; }
   .acc-toolbar .btn { flex: 1 1 0; min-width: 0; padding-left: .5rem; padding-right: .5rem; white-space: nowrap; }
 }
+
+/* Budgets: Fortschrittsbalken + kompakte Mobilansicht */
+.bbar { height: 6px; border-radius: 99px; background: var(--bar); overflow: hidden; }
+.bbar i { display: block; height: 100%; border-radius: 99px; background: var(--good); }
+.bbar.warn i { background: var(--warn); } .bbar.over i, .bbar.tot.over i { background: var(--bad); }
+.bbar.tot { margin: 0 0 .8rem; }
+td.bm, .bz-toggle { display: none; }
+@media (max-width: 640px) {
+  table.bt tr { grid-template-columns: minmax(0, 1fr) 5.2rem; align-items: center; gap: .15rem .6rem; padding: .55rem .1rem; }
+  table.bt td.nm { grid-column: 1; min-width: 0; }
+  table.bt td.nm .nmtxt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table.bt .incl { display: none; }
+  table.bt td.num { display: none; }
+  table.bt td.num:has(.bud) { display: block; grid-column: 2; grid-row: 1; }
+  table.bt td.num[data-l]::before { display: none; }
+  table.bt td.st { display: none; }
+  table.bt .bud { padding: .35rem .5rem; font-size: .9rem; height: auto; }
+  table.bt td.bm { display: block; grid-column: 1 / -1; }
+  table.bt .bmeta { font-size: .75rem; color: var(--muted); margin-top: .25rem; }
+  table.bt .bbar { margin-top: .1rem; }
+  table.bt tr.bz { display: none; }
+  table.bt.show-zero tr.bz { display: grid; }
+  table.bt tr.sub td.nm { font-size: .9rem; }
+  .bz-toggle { display: block; margin: .6rem auto 0; }
+}
+table.bt .pill { white-space: nowrap; }

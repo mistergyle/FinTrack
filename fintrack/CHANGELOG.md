@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0
+
+- Budgets (mobil) deutlich kompakter: pro Kategorie nur noch eine Zeile mit Name (einzeilig) und Budget-Feld, darunter ein Fortschrittsbalken (grün / orange / rot) mit „Ausgegeben von Budget · Ø 3 Monate“. Kategorien ohne Ausgaben und ohne Budget sind unter „Weitere Kategorien anzeigen“ eingeklappt.
+- Gesamtbudget mit Fortschrittsbalken; Button heißt jetzt „Vorschläge übernehmen“ (Erklärung als Tooltip). Die Desktop-Tabelle bleibt, ergänzt um den Gesamtbalken.
+
 ## 0.11.7
 
 - Umsätze (mobil): Das aktive Sortier-Icon ist auch beim ersten Öffnen der Ansicht farbig markiert (vorher erst nach dem ersten Antippen).

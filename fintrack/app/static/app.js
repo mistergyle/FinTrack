@@ -406,18 +406,23 @@ async function viewBudgets() {
   const exp = catTree(['expense']);
   v.innerHTML = monthToolbar(false) + `
     <div class="card"><div class="row" style="margin-bottom:.6rem"><h2 style="margin:0">Monatsbudgets je Kategorie</h2><span class="spacer"></span>
-      <button class="btn" id="b-sug" ${sug.suggestions.length ? '' : 'disabled'}>Vorschläge übernehmen (Ø 3 Monate)</button></div>
-      <p class="muted" style="margin-top:0">Gesamtbudget: <b>${eur0(o.total_budget_cents)}</b> · ausgegeben: <b>${eur0(o.expenses_cents)}</b></p>
-      <div class="table-wrap"><table class="stack"><thead><tr><th>Kategorie</th><th class="num">Ø 3 Monate</th><th class="num">${esc(monthName(state.month))}</th><th class="num">Budget / Monat (€)</th><th>Status</th></tr></thead><tbody>
+      <button class="btn" id="b-sug" title="Budgets aus dem Durchschnitt der letzten 3 Monate vorschlagen" ${sug.suggestions.length ? '' : 'disabled'}>Vorschläge übernehmen</button></div>
+      <p class="muted" style="margin:0 0 .4rem">Gesamtbudget: <b>${eur0(o.total_budget_cents)}</b> · ausgegeben: <b>${eur0(o.expenses_cents)}</b></p>
+      ${o.total_budget_cents ? `<div class="bbar tot ${o.expenses_cents > o.total_budget_cents ? 'over' : ''}"><i style="width:${Math.min(100, Math.round(o.expenses_cents / o.total_budget_cents * 100))}%"></i></div>` : ''}
+      <div class="table-wrap"><table class="stack bt"><thead><tr><th>Kategorie</th><th class="num">Ø 3 Monate</th><th class="num">${esc(monthName(state.month))}</th><th class="num">Budget / Monat (€)</th><th>Status</th></tr></thead><tbody>
       ${exp.flatMap(t => [[t, false], ...t.children.map(k => [k, true])]).map(([c, child]) => { const s = spent[c.id] || {}; const b = c.budget_cents;
         const hasKids = !child && c.children.length; const eff = hasKids && !b && s.budget_cents ? s.budget_cents : null;
         const open = child && (s.spent_cents || b || (s.avg3_cents || 0));
         const chev = hasKids ? `<button class="chev" type="button" data-btoggle="${c.id}" aria-expanded="${c.children.some(k => (spent[k.id] || {}).spent_cents || k.budget_cents) ? 'true' : 'false'}" aria-label="Unterkategorien von ${esc(c.name)} ein-/ausklappen">›</button>` : '';
-        return `<tr class="${child ? 'sub' : ''}" ${child ? `data-bparent="${c.parent_id}" ${open ? '' : 'hidden'}` : ''}><td class="nm">${chev}<span class="dot" style="background:${esc(c.color)}"></span><span class="nmtxt">${esc(c.name)}${hasKids ? ' <span class="muted">· inkl. Unterkategorien</span>' : ''}</span></td>
+        const eb = b || s.budget_cents || 0, sp = s.spent_cents || 0, zero = !sp && !eb && !(s.avg3_cents || 0);
+        const meta = `${eur0(sp)}${eb ? ' von ' + eur0(eb) : ''}${s.avg3_cents ? ' · Ø ' + eur0(s.avg3_cents) : ''}`;
+        return `<tr class="${child ? 'sub' : ''}${zero && !child ? ' bz' : ''}" ${child ? `data-bparent="${c.parent_id}" ${open ? '' : 'hidden'}` : ''}><td class="nm">${chev}<span class="dot" style="background:${esc(c.color)}"></span><span class="nmtxt">${esc(c.name)}${hasKids ? ' <span class="muted incl">· inkl. Unterkategorien</span>' : ''}</span></td>
         <td class="num muted" data-l="Ø 3 Monate">${s.avg3_cents ? eur0(s.avg3_cents) : '–'}</td><td class="num" data-l="${esc(monthName(state.month))}">${eur(s.spent_cents || 0)}</td>
         <td class="num" data-l="Budget (€)"><input class="bud" type="number" min="0" step="5" data-id="${c.id}" value="${b ? (b / 100) : ''}" placeholder="${eff ? eur0(eff) + ' (Summe)' : '–'}" style="text-align:right"></td>
-        <td class="st">${s.status && s.status !== 'none' ? `<span class="pill ${s.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten' }[s.status]}</span>` : ''}</td></tr>`; }).join('')}
-      </tbody></table></div></div>`;
+        <td class="st">${s.status && s.status !== 'none' ? `<span class="pill ${s.status}">${{ ok: 'im Plan', warn: 'knapp', over: 'überschritten' }[s.status]}</span>` : ''}</td>
+        <td class="bm">${eb ? `<div class="bbar ${s.status || ''}"><i style="width:${Math.min(100, Math.round(sp / eb * 100))}%"></i></div>` : ''}<div class="bmeta">${meta}</div></td></tr>`; }).join('')}
+      </tbody></table></div>
+      ${exp.filter(t => { const s = spent[t.id] || {}; return !s.spent_cents && !t.budget_cents && !s.budget_cents && !s.avg3_cents; }).length ? `<button type="button" class="btn ghost small bz-toggle" id="bz-toggle">Weitere Kategorien anzeigen</button>` : ''}</div>`;
   wireToolbar(viewBudgets);
   $$('[data-btoggle]', v).forEach(t => t.onclick = () => {
     const openNow = t.getAttribute('aria-expanded') !== 'true';
@@ -428,6 +433,8 @@ async function viewBudgets() {
     const cents = i.value === '' ? null : Math.round(parseFloat(i.value) * 100);
     try { await api(`/budgets/${i.dataset.id}`, { method: 'PUT', json: { monthly_cents: cents } }); await loadMeta(); toast('Budget gespeichert'); viewBudgets(); } catch (e) { toast(e.message, true); }
   });
+  const bz = $('#bz-toggle');
+  if (bz) bz.onclick = () => { const t = $('table.bt', v); t.classList.toggle('show-zero'); bz.textContent = t.classList.contains('show-zero') ? 'Weitere Kategorien ausblenden' : 'Weitere Kategorien anzeigen'; };
   $('#b-sug').onclick = async () => {
     for (const s of sug.suggestions) await api(`/budgets/${s.category_id}`, { method: 'PUT', json: { monthly_cents: s.suggested_cents } });
     await loadMeta(); toast(`${sug.suggestions.length} Budgets gesetzt`); viewBudgets();
