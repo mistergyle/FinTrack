@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.11.5
+
+- Umsätze (mobil): Das Sortier-Dropdown ist durch zwei Icons ersetzt – Kalender = „Datum · neueste zuerst“ (Standard), Euro = „Betrag · Ausgaben zuerst“. Auf dem Desktop bleibt die Sortierung über die Spaltenüberschriften.
+
 ## 0.11.4
 
 - Konten (mobil): „Duplikate bereinigen“ und „Konto hinzufügen“ stehen nebeneinander in einer Zeile; die doppelte Überschrift „Konten“ entfällt auf dem Handy.

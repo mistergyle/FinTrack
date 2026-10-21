@@ -314,7 +314,7 @@ async function viewTransactions(params) {
       <input type="search" id="f-q" placeholder="Suchen (Empfänger, Verwendungszweck)…" value="${esc(txFilter.q)}" class="grow-in">
       <select id="f-cat"><option value="">Alle Kategorien</option><option value="none" ${txFilter.category_id === 'none' ? 'selected' : ''}>Ohne Kategorie</option>${catOptions(txFilter.category_id)}</select>
       <label style="margin:0;display:flex;gap:.4rem;align-items:center"><input type="checkbox" id="f-all" ${txFilter.all ? 'checked' : ''} style="width:auto;margin:0"> alle Monate</label>
-      <select id="f-sort" class="sort-mobile" aria-label="Sortierung">${[['date|desc', 'Datum · neueste zuerst'], ['date|asc', 'Datum · älteste zuerst'], ['amount|asc', 'Betrag · Ausgaben zuerst'], ['amount|desc', 'Betrag · Einnahmen zuerst']].map(([v, l]) => `<option value="${v}" ${v === txFilter.sort + '|' + txFilter.dir ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      <span class="sort-mobile sort-icons" role="group" aria-label="Sortierung"><button type="button" class="ib sort-ic" data-ms="date|desc" title="Nach Datum sortieren (neueste zuerst)" aria-label="Nach Datum sortieren, neueste zuerst"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></button><button type="button" class="ib sort-ic" data-ms="amount|asc" title="Nach Betrag sortieren (Ausgaben zuerst)" aria-label="Nach Betrag sortieren, Ausgaben zuerst"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 6.5a6 6 0 1 0 0 11M5 10.5h8M5 13.5h8"/></svg></button></span>
       <span class="spacer"></span><span id="tx-sum" class="muted"></span>
       <button class="btn danger" id="tx-del" disabled title="Alle Umsätze löschen, die zu den aktuellen Filtern passen">Gefilterte löschen</button>
     </div>
@@ -365,13 +365,13 @@ async function viewTransactions(params) {
   const syncSort = () => {
     $$('.th-sort', v).forEach(b => { const on = b.dataset.sort === txFilter.sort; b.classList.toggle('on', on);
       b.querySelector('.arr').textContent = on ? (txFilter.dir === 'asc' ? '▲' : '▼') : '↕'; b.parentElement.setAttribute('aria-sort', on ? (txFilter.dir === 'asc' ? 'ascending' : 'descending') : 'none'); });
-    $('#f-sort').value = txFilter.sort + '|' + txFilter.dir;
+    $$('.sort-ic', v).forEach(b => { const on = b.dataset.ms === txFilter.sort + '|' + txFilter.dir; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
   };
   $$('.th-sort', v).forEach(b => b.onclick = () => {
     txFilter.dir = txFilter.sort === b.dataset.sort ? (txFilter.dir === 'asc' ? 'desc' : 'asc') : (b.dataset.sort === 'date' ? 'desc' : 'asc');
     txFilter.sort = b.dataset.sort; syncSort(); load(true);
   });
-  $('#f-sort').onchange = e => { [txFilter.sort, txFilter.dir] = e.target.value.split('|'); syncSort(); load(true); };
+  $$('.sort-ic', v).forEach(b => b.onclick = () => { [txFilter.sort, txFilter.dir] = b.dataset.ms.split('|'); syncSort(); load(true); });
   $('#f-all').onchange = e => { txFilter.all = e.target.checked; load(true); };
   body.addEventListener('change', e => { if (e.target.classList.contains('tx-cat')) askRule(e.target); });
   await load(true);

@@ -248,6 +248,9 @@ svg.sk .sk-link { cursor: pointer; }
 .th-sort .arr { font-size: .7rem; opacity: .5; } .th-sort.on { color: var(--ink); } .th-sort.on .arr { opacity: 1; color: var(--accent); }
 th.num .th-sort { flex-direction: row-reverse; }
 .sort-mobile { display: none; }
+.sort-icons { gap: .3rem; }
+.sort-ic { border: 1px solid var(--line); border-radius: 10px; width: 40px; height: 40px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); background: var(--card); }
+.sort-ic.on { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
 .picker { display: inline-flex; align-items: center; gap: .5rem; font-size: 1.15rem; font-weight: 700; letter-spacing: -.01em; text-transform: capitalize; }
 .picker svg { color: var(--muted); }
 .pp-year { display: flex; justify-content: space-between; align-items: center; margin-bottom: .8rem; font-size: 1.2rem; }
@@ -257,7 +260,7 @@ th.num .th-sort { flex-direction: row-reverse; }
 .pp-m.cur { border-color: var(--accent); }
 .pp-m.on, .pp-all.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .pp-all { width: 100%; margin-top: .6rem; }
-@media (max-width: 640px) { .sort-mobile { display: block; flex: 1 1 100%; } .picker { font-size: 1.05rem; flex: 1; justify-content: center; } }
+@media (max-width: 640px) { .sort-mobile { display: flex; margin-left: auto; } .picker { font-size: 1.05rem; flex: 1; justify-content: center; } }
 .picker span { white-space: nowrap; } @media (max-width: 640px) { .picker { font-size: 1rem; gap: .3rem; padding-left: .4rem; padding-right: .4rem; min-width: 0; } }
 .pp-yearbtn { font: inherit; font-size: 1.2rem; font-weight: 700; padding: .35rem .9rem; min-height: 44px; border: 1px solid transparent; border-bottom: 2px dashed var(--line); background: transparent; color: var(--ink); border-radius: 10px; cursor: pointer; }
 .pp-yearbtn:hover { background: var(--bar); }
@@ -270,8 +273,8 @@ th.num .th-sort { flex-direction: row-reverse; }
   .toolbar > .picker { flex: 1 1 0; min-width: 0; justify-content: center; }
   .picker span { overflow: hidden; text-overflow: ellipsis; }
   .toolbar > #m-now { display: none; }          /* „Heute“ steckt im Datepicker */
-  .toolbar > #acc-filter, .toolbar > #f-cat, .toolbar > .sort-mobile { flex: 1 1 100%; min-width: 0; max-width: 100%; width: 100%; }
-  .toolbar > label { flex: 1 1 100%; }
+  .toolbar > #acc-filter, .toolbar > #f-cat { flex: 1 1 100%; min-width: 0; max-width: 100%; width: 100%; }
+  .toolbar > label { flex: 1 1 0; min-width: 0; }
   .toolbar > .spacer { display: none; }
   #tx-sum { flex: 1 1 100%; text-align: right; }
 }
