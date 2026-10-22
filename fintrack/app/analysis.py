@@ -118,7 +118,7 @@ def overview(conn: sqlite3.Connection, month: str, today: date | None = None,
     for top, members in groups.items():
         spent = sum(spent_by.get(m, 0) for m in members)
         child_budgets = [budgets[m] for m in members if m != top and m in budgets]
-        eff = budgets.get(top) or (sum(child_budgets) or None)
+        eff = (budgets.get(top) or 0) + sum(child_budgets) or None   # eigenes Budget (Umsätze ohne Unterkategorie) + Unterkategorien
         if not spent and not eff and not any(avg.get(m) for m in members):
             continue
         e = entry(top, spent, eff, sum(avg.get(m, 0) for m in members))

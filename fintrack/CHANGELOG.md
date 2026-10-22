@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.6
+
+- Budget-Summe einer Hauptkategorie korrigiert: Das Budget der Hauptkategorie selbst gilt jetzt für Umsätze *ohne* Unterkategorie und wird zur Summe der Unterkategorie-Budgets **addiert** (vorher überschrieb es die Summe, sodass z. B. 1.220 € angezeigt wurden, obwohl die Unterkategorien 1.100 € ergaben). „Vorschläge übernehmen“ ist damit konsistent: Hauptkategorie = Ohne Unterkategorie + alle Unterkategorien.
+- Budgets: In der aufgeklappten Hauptkategorie gibt es bei Bedarf eine Zeile „Ohne Unterkategorie“ zum Bearbeiten dieses Anteils. Das „×“ zum Entfernen entfällt.
+- Hinweis: Wer früher bewusst ein Gesamtbudget auf einer Hauptkategorie **und** Budgets auf Unterkategorien gesetzt hat, sollte die Werte prüfen – sie werden nun addiert.
+
 ## 0.12.5
 
 - Regeln → „Kategorien & Unterkategorien“ analog zu den Budgets: Hauptkategorien mit Pfeil zum Auf-/Zuklappen (immer nur eine offen, beim Start alle zu), Unterkategorien mit getöntem Hintergrund und farbigem Balken links. Nach „＋ Unterkategorie“ ist die Hauptkategorie aufgeklappt.

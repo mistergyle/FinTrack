@@ -321,12 +321,12 @@ class SubcategoryTests(unittest.TestCase):
         self.assertIn("income_categories", o)
         # Filter nach Oberkategorie schließt Unterkategorien ein
         self.assertEqual(c.get(f"/api/transactions?category_id={top}").json()["total"], 2)
-        # Budget auf Oberkategorie hat Vorrang vor Summe der Unterbudgets
+        # Budget der Oberkategorie gilt für Umsätze ohne Unterkategorie und wird zur Summe der Unterbudgets addiert
         c.put(f"/api/budgets/{cats['Lebensmittel / Getränke']['id']}", json={"monthly_cents": 10000})
         c.put(f"/api/budgets/{top}", json={"monthly_cents": 20000})
         o = c.get("/api/analysis/overview?month=2026-10").json()
-        self.assertEqual(o["total_budget_cents"], 20000)
-        self.assertEqual(next(x for x in o["categories"] if x["id"] == top)["budget_cents"], 20000)
+        self.assertEqual(o["total_budget_cents"], 30000)
+        self.assertEqual(next(x for x in o["categories"] if x["id"] == top)["budget_cents"], 30000)
 
     def test_sorting(self):
         os.environ["APP_PASSWORD"] = "pw"
