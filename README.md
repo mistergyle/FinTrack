@@ -17,11 +17,12 @@ Alle Bilder zeigen frei erfundene Beispieldaten (`fintrack/tests/samples/`).
 | **Fixkosten** | **Konten** |
 | ![Fixkosten](docs/screenshots/desktop-fixkosten.png) | ![Konten](docs/screenshots/desktop-konten.png) |
 
-Mobil optimiert (Burger-Menü, Datepicker für Monat oder ganzes Jahr, Konten als Tags):
+Mobil optimiert (Burger-Menü, Datepicker für Monat oder ganzes Jahr, Konten als Tags, neue Umsätze mit grünem Punkt, kompakte Budgets mit Fortschrittsbalken):
 
 <p>
 <img src="docs/screenshots/mobil-uebersicht.png" width="260" alt="Übersicht mobil">
 <img src="docs/screenshots/mobil-umsaetze.png" width="260" alt="Umsätze mobil">
+<img src="docs/screenshots/mobil-budgets.png" width="260" alt="Budgets mobil">
 <img src="docs/screenshots/mobil-menue.png" width="260" alt="Menü mobil">
 </p>
 
