@@ -550,6 +550,18 @@ class GenericCsvTests(unittest.TestCase):
         o = c.get(f"/api/analysis/overview?month=2026-03&account_id={ids[0]},{ids[1]}").json()
         self.assertEqual(o["expenses_cents"], 300)
 
+    def test_new_marker(self):
+        from app.db import session
+        c = self.c
+        acc = c.post("/api/accounts", json={"name": "B", "bank": "other"}).json()["id"]
+        m = {"date": "Date", "payee": "Description", "amount": "Amount", "date_format": "%Y-%m-%d"}
+        csv = b"Date,Description,Amount\n2026-03-01,Alt,-1.00\n2026-03-02,Neu,-2.00\n"
+        c.post("/api/import", files={"file": ("x.csv", csv)}, data={"account_id": str(acc), "mapping": json.dumps(m)})
+        with session() as conn:   # ersten Umsatz in einen früheren Import-Lauf verschieben
+            conn.execute("UPDATE transactions SET created_at='2020-01-01T10:00:00' WHERE payee='Alt'")
+        tx = {t["payee"]: t["is_new"] for t in c.get("/api/transactions?limit=10").json()["transactions"]}
+        self.assertEqual(tx, {"Alt": False, "Neu": True})
+
     def test_mismatch_and_dot_decimal(self):
         c = self.c
         acc = c.post("/api/accounts", json={"name": "B", "bank": "other"}).json()["id"]

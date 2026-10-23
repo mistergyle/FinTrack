@@ -323,15 +323,19 @@ async function viewTransactions(params) {
   wireToolbar(() => viewTransactions(new URLSearchParams()));
   let offset = 0, lastTotal = { n: 0, sum: 0 };
   const body = $('#tx-body');
+  let newSeen = false;
   async function load(reset) {
     if (reset) { offset = 0; body.innerHTML = ''; }
     const p = base(); p.set('limit', 100); p.set('offset', offset); p.set('sort', txFilter.sort); p.set('dir', txFilter.dir);
     const d = await api('/transactions?' + p);
     $('#tx-sum').textContent = `${d.total} Umsätze · Summe ${eur(d.sum_cents)}`;
+    if (reset) newSeen = false;
+    newSeen = newSeen || d.transactions.some(t => t.is_new);
+    $('#tx-sum').insertAdjacentHTML('beforeend', newSeen ? ' · <span class="newdot" aria-hidden="true"></span> neu' : '');
     lastTotal = { n: d.total, sum: d.sum_cents }; $('#tx-del').disabled = !d.total;
     body.insertAdjacentHTML('beforeend', d.transactions.map(t => `<tr data-id="${t.id}">
       <td class="d">${esc(dateDe(t.booking_date))}</td>
-      <td class="payee"><div class="p" title="${esc(t.payee)}">${esc(t.payee || t.booking_text || '–')}</div><div class="s" title="${esc(t.purpose)}">${esc(t.purpose)}</div></td>
+      <td class="payee"><div class="p" title="${esc(t.payee)}">${t.is_new ? '<span class="newdot" role="img" aria-label="neu" title="Beim letzten Import / Abruf neu hinzugekommen"></span>' : ''}${esc(t.payee || t.booking_text || '–')}</div><div class="s" title="${esc(t.purpose)}">${esc(t.purpose)}</div></td>
       <td class="muted a">${esc(t.account_name)}</td>
       <td class="c"><select class="tx-cat" data-id="${t.id}" data-payee="${esc(t.payee || t.booking_text)}">${catOptions(t.category_id)}</select></td>
       <td class="num">${sgn(t.amount_cents)}</td></tr>`).join('') || (reset ? '<tr><td colspan="5" class="empty">Keine Umsätze gefunden.</td></tr>' : ''));

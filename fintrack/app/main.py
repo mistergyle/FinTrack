@@ -7,7 +7,7 @@ import os
 import re
 import secrets
 import time
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from itsdangerous import BadSignature, URLSafeTimedSerializer
 from starlette.applications import Starlette
@@ -404,8 +404,22 @@ async def list_transactions(request: Request):
             f"FROM transactions t JOIN accounts a ON a.id=t.account_id "
             f"LEFT JOIN categories c ON c.id=t.category_id WHERE {w} "
             f"ORDER BY {order} LIMIT ? OFFSET ?", [*args, limit, offset]).fetchall()
-        return JSONResponse({"total": total[0], "sum_cents": total[1],
-                             "transactions": [{k: r[k] for k in r.keys() if k not in ("hash",)} for r in rows]})
+        # „Neu“ = gehört zum letzten Import-/Abruf-Lauf des Kontos (Zeitstempel bis 2 Minuten vor dem jüngsten)
+        newest = {r["account_id"]: r["m"] for r in conn.execute(
+            "SELECT account_id, MAX(created_at) m FROM transactions GROUP BY account_id")}
+
+        def _thr(m: str) -> str:
+            try:
+                return (datetime.fromisoformat(m) - timedelta(minutes=2)).isoformat(timespec="seconds")
+            except ValueError:
+                return m
+        thr = {a: _thr(m) for a, m in newest.items()}
+        out = []
+        for r in rows:
+            d = {k: r[k] for k in r.keys() if k not in ("hash",)}
+            d["is_new"] = r["created_at"] >= thr.get(r["account_id"], "9")
+            out.append(d)
+        return JSONResponse({"total": total[0], "sum_cents": total[1], "transactions": out})
 
 
 async def delete_transactions(request: Request):

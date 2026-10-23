@@ -349,3 +349,4 @@ table.bt tr:not(.sub) td.nm { font-weight: 600; }
 .cat-mgmt .child-item { background: color-mix(in srgb, var(--cc, var(--accent)) 7%, var(--card)); box-shadow: inset 3px 0 0 var(--cc, var(--accent)); border-radius: 0 8px 8px 0; margin: .1rem 0; padding: .25rem 0 .25rem 1.1rem; align-items: center; }
 .cat-mgmt .child-item .dot { flex: none; }
 .cat-mgmt .cat-top > .grow b { font-weight: 700; }
+.newdot { display: inline-block; width: .55rem; height: .55rem; border-radius: 50%; background: var(--good); margin-right: .4rem; vertical-align: .08em; box-shadow: 0 0 0 3px color-mix(in srgb, var(--good) 25%, transparent); }

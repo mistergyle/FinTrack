@@ -314,6 +314,7 @@ def store_transactions(conn: sqlite3.Connection, account_id: int,
                     skip.add(h)
 
     added = skipped = 0
+    ts = now_iso()                      # ein Zeitstempel je Import-/Abruf-Lauf (für die „neu“-Markierung)
     for t, h in items:
         if h in skip:
             skipped += 1
@@ -324,7 +325,7 @@ def store_transactions(conn: sqlite3.Connection, account_id: int,
             "booking_text,counterparty_iban,amount_cents,currency,category_id,category_source,hash,created_at) "
             "VALUES(?,?,?,?,?,?,?,?,?,?,'rule',?,?)",
             (account_id, t.booking_date, t.value_date, t.payee, t.purpose, t.booking_text,
-             t.counterparty_iban, t.amount_cents, t.currency, cat, h, now_iso()),
+             t.counterparty_iban, t.amount_cents, t.currency, cat, h, ts),
         )
         if cur.rowcount:
             added += 1
